@@ -23,7 +23,7 @@ let bind m f = fun s ->
 
 let ( >>= ) = bind
 
-let ( >> ) u v = u >>= fun _ -> v
+let ( >> ) m x = m >>= fun _ -> x
 
 let run m = fun s -> (m s)
 
@@ -33,8 +33,8 @@ let put s = fun _ -> ((), s)
 
 
 let advance : 'a t =
-  get >>= fun {tokens; grammar} ->
-    put {tokens = List.tl tokens; grammar}
+  get >>= fun state ->
+    put {state with tokens = List.tl state.tokens}
 
 
 let rec parse_loop : int -> 'a t -> 'a t = fun rbp left ->
@@ -48,13 +48,32 @@ let rec parse_loop : int -> 'a t -> 'a t = fun rbp left ->
     then
       left >>= fun expr ->
         let right = infix expr token in
-          parse_loop rbp right
+        parse_loop rbp right
 
-(*       advance >> left >>= fun expr ->
+      (* advance >> infix left >>= \ right -> expression' rbp right *)
+      (* advance >> left >>= fun expr ->
         let right = infix expr token in
-          parse_loop rbp right *)
+        parse_loop rbp right *)
     else
       left
+
+(* 
+if rbp < lbp s
+then do
+  advance
+  right <- led s left
+  expression' rbp right
+else
+  return left
+
+if rbp < lbp s
+then do
+  advance >> led s left >>= \right ->
+    expression' rbp right
+else
+  return left
+ *)
+
 
 
 let parse_expression : int -> 'a t = fun rbp ->

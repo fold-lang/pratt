@@ -33,7 +33,7 @@ let grammar : Token.t -> expr Parser.handler =
   | _ -> failwith "Unknown token.")
 
 
-let expr_lexbuf = Lexing.from_string "2 + 2 * 3"
+let expr_lexbuf = Lexing.from_string "2 + 1 * 3"
 
 
 let _ =
@@ -41,7 +41,6 @@ let _ =
     let next () = Lexer.token expr_lexbuf in
     {tokens = repeat_until next Token.eof; grammar} in
 
-  print_endline "# Tokens:";
-  List.iter (fun t -> print_endline (Token.to_string t)) state.tokens;
+    Token.print_list @@ state.tokens;
 
   Parser.run (Parser.parse_expression 0) state
