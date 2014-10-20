@@ -1,8 +1,5 @@
 
-type expr =
-    | Add of expr * expr
-    | Mul of expr * expr
-    | Int of int
+type expr = Parser.expr
 
 (* expr Parser.t = expr Parser.state -> expr * expr Parser.state *)
 
@@ -35,11 +32,13 @@ let grammar : Token.t -> expr Parser.handler =
 let expr_lexbuf = Lexing.from_string "2 + 1 * 3"
 
 
-let _ =
+let () =
   let state =
     let next () = Lexer.token expr_lexbuf in
     {tokens = repeat_until next Token.eof; grammar} in
 
     Token.print_list @@ state.tokens;
 
-  Parser.run (Parser.parse_expression 0) state
+  let expr, _ = Parser.run (Parser.parse_expression 0) state in
+  print_endline @@ string_of_expr expr;
+  print_endline "End."

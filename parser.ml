@@ -1,11 +1,26 @@
 
 open Foundation
 
-type 'a t = 'a state -> ('a * 'a state)
 
-and 'a state = {
+type expr =
+    | Add of expr * expr
+    | Mul of expr * expr
+    | Int of int
+
+
+
+let rec string_of_expr expr = match expr with
+  | Add (e1, e2) -> Printf.sprintf "(+ %s %s)" (string_of_expr e1) (string_of_expr e1)
+  | Mul (e1, e2) -> Printf.sprintf "(* %s %s)" (string_of_expr e1) (string_of_expr e1)
+  | Int n -> string_of_int n
+
+
+
+type 'a t = state -> ('a * state)
+
+and state = {
   tokens: Token.t list;
-  grammar: Token.t -> 'a handler
+  grammar: Token.t -> expr handler
 }
 
 and 'a handler =
@@ -23,7 +38,7 @@ let bind m f = fun s ->
 
 let ( >>= ) = bind
 
-let ( >>| ) m f = m >>= fun x -> return x
+let ( >>| ) m f = m >>= fun x -> return (f x)
 
 let ( >> ) m x = m >>= fun _ -> x
 
@@ -39,53 +54,28 @@ let advance : 'a t =
     put {state with tokens = List.tl state.tokens}
 
 
-let rec parse_loop : int -> 'a t -> 'a t = fun rbp left ->
+let rec parse_loop : int -> 'a -> 'a t = fun rbp left ->
   get >>= fun {tokens; grammar} ->
+    if (List.length tokens = 0) then
+      return left
+    else
+
     let token = List.hd tokens in
-    let lbp, (infix : 'a -> 'a t) =
-      match grammar token with
+    let lbp, infix = match grammar token with
       | `Infix (lbp, infix) -> lbp, infix
       | `Prefix _ -> failwith "Expected an infix handler." in
-    if (lbp > rbp)
-    then
-      left >>= fun expr ->
-        let right = infix expr in
+    (Printf.printf "lbp(%d) > rbp(%d)\n" lbp rbp);
+    if (lbp > rbp) then
+      advance >> infix left >>= fun right ->
         parse_loop rbp right
-
-      (* advance >> infix left >>= \ right -> expression' rbp right *)
-      (* advance >> left >>= fun expr ->
-        let right = infix expr token in
-        parse_loop rbp right *)
     else
-      left
-
-(* 
-if rbp < lbp s
-then do
-  advance
-  right <- led s left
-  expression' rbp right
-else
-  return left
-
-if rbp < lbp s
-then do
-  advance >> led s left >>= \right ->
-    expression' rbp right
-else
-  return left
- *)
-
+      return left
 
 
 let parse_expression : int -> 'a t = fun rbp ->
   get >>= fun {tokens; grammar} ->
-    let (token : Token.t) = List.hd tokens in
-    let (prefix : 'a t) =
-      match grammar token with
+    let token = List.hd tokens in
+    let prefix = match grammar token with
       | `Prefix prefix -> prefix
       | `Infix _ -> failwith "Expected a prefix handler." in
-    let (left : 'a t) = prefix in
-    parse_loop rbp left
-    (* advance >> parse_loop rbp left *)
-    
+    prefix >>= fun left -> advance >> parse_loop rbp left
