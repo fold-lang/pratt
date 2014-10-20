@@ -9,8 +9,8 @@ and 'a state = {
 }
 
 and 'a handler =
-    [ `Prefix of (Token.t -> 'a t)
-    | `Infix of (int * ('a -> Token.t -> 'a t))]
+    [ `Prefix of 'a t
+    |  `Infix of (int * ('a -> 'a t))]
 
 
 let return
@@ -22,6 +22,8 @@ let bind m f = fun s ->
   f x s'
 
 let ( >>= ) = bind
+
+let ( >>| ) m f = m >>= fun x -> return x
 
 let ( >> ) m x = m >>= fun _ -> x
 
@@ -40,14 +42,14 @@ let advance : 'a t =
 let rec parse_loop : int -> 'a t -> 'a t = fun rbp left ->
   get >>= fun {tokens; grammar} ->
     let token = List.hd tokens in
-    let lbp, (infix : 'a -> Token.t -> 'a t) =
+    let lbp, (infix : 'a -> 'a t) =
       match grammar token with
       | `Infix (lbp, infix) -> lbp, infix
       | `Prefix _ -> failwith "Expected an infix handler." in
     if (lbp > rbp)
     then
       left >>= fun expr ->
-        let right = infix expr token in
+        let right = infix expr in
         parse_loop rbp right
 
       (* advance >> infix left >>= \ right -> expression' rbp right *)
@@ -79,11 +81,11 @@ else
 let parse_expression : int -> 'a t = fun rbp ->
   get >>= fun {tokens; grammar} ->
     let (token : Token.t) = List.hd tokens in
-    let (prefix : Token.t -> 'a t) =
+    let (prefix : 'a t) =
       match grammar token with
       | `Prefix prefix -> prefix
       | `Infix _ -> failwith "Expected a prefix handler." in
-    let (left : 'a t) = prefix token in
+    let (left : 'a t) = prefix in
     parse_loop rbp left
     (* advance >> parse_loop rbp left *)
     

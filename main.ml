@@ -15,21 +15,20 @@ open Parser
 open Foundation
 
 
-let int_handler token =
-  return (Int (int_of_string Token.(token.text)))
+let parse_int nstr =
+  return (Int (int_of_string nstr))
 
-let add_handler expr token =
-  parse_expression 50 >>= fun right -> return (Add (expr, right))
 
-let mul_handler expr token =
-  parse_expression 60 >>= fun right -> return (Mul (expr, right))
+let parse_symbol = function
+  | "+" -> (50, fun l -> parse_expression 50 >>| fun r -> Add (l, r))
+  | "*" -> (60, fun l -> parse_expression 60 >>| fun r -> Mul (l, r))
+  | _ -> failwith "Unknown symbol."
 
 
 let grammar : Token.t -> expr Parser.handler =
   Token.(function
-  | { kind = Number } -> `Prefix int_handler
-  | { kind = Symbol; text = "+" } -> `Infix (50, add_handler)
-  | { kind = Symbol; text = "*" } -> `Infix (60, mul_handler)
+  | { kind = Number; text } -> `Prefix (parse_int text)
+  | { kind = Symbol; text } ->  `Infix (parse_symbol text)
   | _ -> failwith "Unknown token.")
 
 
