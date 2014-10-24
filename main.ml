@@ -1,20 +1,9 @@
 
-type expr = Parser.expr
-
-(* expr Parser.t = expr Parser.state -> expr * expr Parser.state *)
-
-(* let plus_handler : expr -> Token.t -> expr Parser.t = Parser.(
-  fun left -> (parse_expression 50 >>= fun right -> return (Add (left, right)))
-)
- *)
-
-open Parser
 open Foundation
+open Parser
 
 
-let parse_int nstr =
-  return (Int (int_of_string nstr))
-
+let parse_int int_str = return (Int (int_of_string int_str))
 
 let parse_symbol = function
   | "+" -> (50, fun l -> parse_expression 50 >>| fun r -> Add (l, r))
@@ -29,16 +18,14 @@ let grammar : Token.t -> expr Parser.handler =
   | _ -> failwith "Unknown token.")
 
 
-let expr_lexbuf = Lexing.from_string "2 + 1 * 3"
-
+let expr_str = "2 + 1 * 3 + 4 + 1 * 2 * 3"
+let expr_lexbuf = Lexing.from_string expr_str
 
 let () =
-  let state =
-    let next () = Lexer.token expr_lexbuf in
+  let state = let next () = Lexer.token expr_lexbuf in
     {tokens = repeat_until next Token.eof; grammar} in
+  let expr = first (Parser.run (Parser.parse_expression 0) state) in
+  print_endline @@ "Input:  " ^ expr_str;
+  print_endline @@ "Output: " ^ string_of_expr expr
 
-    Token.print_list @@ state.tokens;
 
-  let expr, _ = Parser.run (Parser.parse_expression 0) state in
-  print_endline @@ string_of_expr expr;
-  print_endline "End."

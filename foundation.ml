@@ -50,7 +50,17 @@ let rec repeat_fn_to fn limit =
 		then []
 		else [x] @ repeat_fn_to fn limit
 
+let (!!) s =
+    print_string ("= " ^ s); s
+
+
+let print = print_endline
+
+
+let first (x, y) = x
+let second (x, y) = y
 
 module type Type = sig
   type t
 end
+
