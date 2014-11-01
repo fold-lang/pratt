@@ -8,8 +8,6 @@ type expr =
     | Int of int
 
 
-
-
 let rec string_of_expr expr = match expr with
   | Add (e1, e2) -> Printf.sprintf "(%s + %s)" (string_of_expr e1)
                                                (string_of_expr e2)
@@ -23,10 +21,10 @@ let peek_expr e = print (string_of_expr e); e
 
 type 'a t = state -> ('a * state)
 
-and state = {
-  tokens: Token.t list;
-  grammar: Token.t -> expr handler
-}
+and state =
+    {token_stream : Lexing.lexbuf;
+          grammar : Token.t -> expr handler;
+            token : Token.t}
 
 and 'a handler =
     [ `Prefix of 'a t
@@ -56,33 +54,35 @@ let put s = fun _ -> ((), s)
 
 (* Parsing *)
 
+let init_state token_stream grammar =
+  let first_token = Lexer.token token_stream in
+  {token_stream; grammar; token = first_token}
+
+
 let advance : 'a t =
   get >>= fun state ->
-    put {state with tokens = List.tl state.tokens}
+    put {state with token = Lexer.token state.token_stream}
 
 
 let rec parse_loop : int -> 'a -> 'a t = fun rbp left ->
-  get >>= fun {tokens; grammar} ->
-    if (List.length tokens = 0) then
+  get >>= fun {token; grammar} ->
+    if Token.is_end token then
       return left
     else
-
-    let token = List.hd tokens in
-    let lbp, infix = match grammar token with
-      | `Infix (lbp, infix) -> lbp, infix
-      | `Prefix _ -> failwith "Expected an infix handler." in
-    if (lbp > rbp) then
-      advance >> infix left >>= fun new_left ->
-        parse_loop rbp new_left
-    else
-      return left
+      let lbp, infix = match grammar token with
+        | `Infix h -> h
+        | `Prefix _ -> failwith "Expected an infix handler." in
+      if (lbp > rbp) then
+        advance >> infix left >>= fun new_left ->
+          parse_loop rbp new_left
+      else
+        return left
 
 
 let parse_expression : int -> 'a t = fun rbp ->
-  get >>= fun {tokens; grammar} ->
-    let token = List.hd tokens in
+  get >>= fun {token; grammar} ->
     let prefix = match grammar token with
-      | `Prefix prefix -> prefix
+      | `Prefix h -> h
       | `Infix _ -> failwith "Expected a prefix handler." in
     prefix >>= fun left ->
       advance >> parse_loop rbp left

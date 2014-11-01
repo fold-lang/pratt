@@ -18,4 +18,5 @@ rule token = parse
   | _ as c
     { failwith ("Unrecognized character: " ^ (String.make 1 c)) }
   | eof
-    { Token.eof }
+    { Token.({ kind = End; text = "" }) }
+

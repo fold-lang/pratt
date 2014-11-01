@@ -51,7 +51,7 @@ let rec repeat_fn_to fn limit =
 		else [x] @ repeat_fn_to fn limit
 
 let (!!) s =
-    print_string ("= " ^ s); s
+    print_endline ("= " ^ s); s
 
 
 let print = print_endline
