@@ -88,3 +88,9 @@ let parse_expression : int -> 'a t = fun rbp ->
       advance >> parse_loop rbp left
 
 
+
+let infix precedence expr_builder =
+    (precedence, fun left ->
+        parse_expression precedence >>| fun right ->
+            expr_builder left right)
+

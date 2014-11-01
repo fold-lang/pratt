@@ -2,12 +2,17 @@
 open Foundation
 open Parser
 
+let rec eval = function
+    | Int a -> a
+    | Add (a, b) -> (eval a) + (eval b)
+    | Mul (a, b) -> (eval a) * (eval b)
+
 
 let parse_int int_str = return (Int (int_of_string int_str))
 
 let parse_symbol = function
-  | "+" -> (50, fun l -> parse_expression 50 >>| fun r -> Add (l, r))
-  | "*" -> (60, fun l -> parse_expression 60 >>| fun r -> Mul (l, r))
+  | "+" -> infix 50 (fun l r -> Add (l, r))
+  | "*" -> infix 60 (fun l r -> Mul (l, r))
   | x -> failwith ("Unknown symbol: `" ^ x ^ "`.")
 
 let grammar : Token.t -> expr Parser.handler =
@@ -24,6 +29,7 @@ let () =
   let state = init_state expr_lexbuf grammar in
   let expr = first (run (parse_expression 0) state) in
   print_endline @@ "Input:  " ^ expr_str;
-  print_endline @@ "Output: " ^ string_of_expr expr
+  print_endline @@ "Output: " ^ string_of_expr expr;
+  print_endline @@ "Result: " ^ string_of_int (eval expr)
 
 
