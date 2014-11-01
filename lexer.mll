@@ -9,14 +9,14 @@ let symbol = ['+' '-' '*' '=' '(' ')']
 rule token = parse
   | [' ' '\t' '\r' '\n']
     { token lexbuf }
-  | digit+ as num
-    { Token.({ kind = Number; text = num }) }
-  | identifier as id
-    { Token.({ kind = Symbol; text = id }) }
-  | symbol* as op
-    { Token.({ kind = Symbol; text = op }) }
+  | digit+ as x
+    { Token.Number x }
+  | identifier as x
+    { Token.Symbol x}
+  | symbol* as x
+    { Token.Symbol x}
   | _ as c
     { failwith ("Unrecognized character: " ^ (String.make 1 c)) }
   | eof
-    { Token.({ kind = End; text = "" }) }
+    { Token.End }
 

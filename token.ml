@@ -1,20 +1,20 @@
 
 
-type k = Symbol | Number | End
+type t =
+    | Symbol of string
+    | Number of string
+    | End
 
-type t = { kind : k; text : string }
 
-let to_string t =
-  let k = match t.kind with
-  | Symbol -> "#"
-  | Number -> ""
-  | End -> "#end" in
-  Printf.sprintf "%s%s" k t.text
+let to_string =
+  function
+  | Symbol x -> "#" ^ x
+  | Number x -> x
+  | End -> "__end__"
 
-let is_end x =
-    match x.kind with
-    | End -> true
-    | _ -> false
+
+let is_end =
+  function End -> true | _ -> false
 
 
 let print t = print_endline (to_string t)

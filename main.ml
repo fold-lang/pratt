@@ -20,8 +20,8 @@ let parse_symbol = function
 
 let grammar : Token.t -> expr Parser.handler =
   Token.(function
-  | { kind = Number; text } -> parse_int text
-  | { kind = Symbol; text } -> parse_symbol text
+  | Number x -> parse_int x
+  | Symbol x -> parse_symbol x
   | _ -> failwith ("Unknown token."))
 
 
