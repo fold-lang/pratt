@@ -30,6 +30,10 @@ and 'a handler =
     [ `Prefix of 'a t
     |  `Infix of (int * ('a -> 'a t))]
 
+type 'a prefix_handler = 'a t
+
+type 'a infix_handler = 'a -> 'a t
+
 
 (* State Monad *)
 
@@ -90,7 +94,10 @@ let parse_expression : int -> 'a t = fun rbp ->
 
 
 let infix precedence expr_builder =
-    (precedence, fun left ->
+    `Infix (precedence, fun left ->
         parse_expression precedence >>| fun right ->
             expr_builder left right)
+
+let prefix expr_builder =
+  fun x -> `Prefix (return (expr_builder x))
 

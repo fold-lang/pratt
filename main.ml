@@ -4,21 +4,24 @@ open Parser
 
 let rec eval = function
     | Int a -> a
+    (* | Var a -> a *)
     | Add (a, b) -> (eval a) + (eval b)
     | Mul (a, b) -> (eval a) * (eval b)
 
 
-let parse_int int_str = return (Int (int_of_string int_str))
+let parse_int = prefix (fun x -> Int (int_of_string x))
+(* let parse_var = prefix (fun x -> Var var_str) *)
 
 let parse_symbol = function
-  | "+" -> infix 50 (fun l r -> Add (l, r))
-  | "*" -> infix 60 (fun l r -> Mul (l, r))
+  | "+" -> infix 50 (fun a b -> Add (a, b))
+  | "*" -> infix 60 (fun a b -> Mul (a, b))
   | x -> failwith ("Unknown symbol: `" ^ x ^ "`.")
+
 
 let grammar : Token.t -> expr Parser.handler =
   Token.(function
-  | { kind = Number; text } -> `Prefix (parse_int text)
-  | { kind = Symbol; text } ->  `Infix (parse_symbol text)
+  | { kind = Number; text } -> parse_int text
+  | { kind = Symbol; text } -> parse_symbol text
   | _ -> failwith ("Unknown token."))
 
 
