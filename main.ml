@@ -2,37 +2,41 @@
 open Foundation
 open Parser
 
-let rec eval = function
-    | Int a -> a
-    (* | Var a -> a *)
-    | Add (a, b) -> (eval a) + (eval b)
-    | Mul (a, b) -> (eval a) * (eval b)
+    
+
+let parse_int = prefix (fun x -> Expression.Int (int_of_string x))
+let parse_var = prefix (fun x -> Expression.Var x)
+let parse_op  = function
+  | "+" -> infix 50 (fun a b -> Expression.Add (a, b))
+  | "*" -> infix 60 (fun a b -> Expression.Mul (a, b))
+  | x -> failwith ("Unknown operator symbol: `" ^ x ^ "`.")
+
+let get_prefix_handler : Token.t -> 'a Parser.prefix_handler =
+  function Token.Number x -> parse_int x
+         | Token.Symbol x -> parse_var x
+         | x -> failwith ("Unknown token: `" ^ (Token.to_string x) ^ "`")
+
+let get_infix_handler : Token.t -> 'a Parser.infix_handler =
+  function Token.Symbol x -> parse_op x
+         | x -> failwith ("Unknown token: `" ^ (Token.to_string x) ^ "`")
 
 
-let parse_int = prefix (fun x -> Int (int_of_string x))
-(* let parse_var = prefix (fun x -> Var var_str) *)
 
-let parse_symbol = function
-  | "+" -> infix 50 (fun a b -> Add (a, b))
-  | "*" -> infix 60 (fun a b -> Mul (a, b))
-  | x -> failwith ("Unknown symbol: `" ^ x ^ "`.")
+let expr_str = "2 + 1 * 3 + a"
+let expr_env = function
+    | "a" -> 4
+    | "b" -> 2
+    | x -> failwith ("Unknown variable: `" ^ x ^ "`")
 
-
-let grammar : Token.t -> expr Parser.handler =
-  Token.(function
-  | Number x -> parse_int x
-  | Symbol x -> parse_symbol x
-  | _ -> failwith ("Unknown token."))
-
-
-let expr_str = "2 + 1 * 3 + 4 + 1 * 2 * 3"
 let expr_lexbuf = Lexing.from_string expr_str
 
 let () =
+  let grammar = { infix = get_infix_handler;
+                 prefix = get_prefix_handler} in
   let state = init_state expr_lexbuf grammar in
   let expr = first (run (parse_expression 0) state) in
   print_endline @@ "Input:  " ^ expr_str;
-  print_endline @@ "Output: " ^ string_of_expr expr;
-  print_endline @@ "Result: " ^ string_of_int (eval expr)
+  print_endline @@ "Output: " ^ Expression.to_string expr;
+  print_endline @@ "Result: " ^ string_of_int (Expression.eval expr_env expr)
 
 

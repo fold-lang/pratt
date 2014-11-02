@@ -1,38 +1,26 @@
 
 open Foundation
 
-
-type expr =
-    | Add of expr * expr
-    | Mul of expr * expr
-    | Int of int
-
-
-let rec string_of_expr expr = match expr with
-  | Add (e1, e2) -> Printf.sprintf "(%s + %s)" (string_of_expr e1)
-                                               (string_of_expr e2)
-  | Mul (e1, e2) -> Printf.sprintf "(%s * %s)" (string_of_expr e1)
-                                               (string_of_expr e2)
-  | Int n -> string_of_int n
-
-
-let peek_expr e = print (string_of_expr e); e
-
-
-type 'a t = state -> ('a * state)
-
-and state =
+type state =
     {token_stream : Lexing.lexbuf;
-          grammar : Token.t -> expr handler;
+          grammar : Expression.t grammar;
             token : Token.t}
 
+and 'a t = state -> ('a * state)
+
 and 'a handler =
-    [ `Prefix of 'a t
-    |  `Infix of (int * ('a -> 'a t))]
+    [ `Prefix of 'a prefix_handler
+    |  `Infix of 'a infix_handler]
 
-type 'a prefix_handler = 'a t
+and 'a prefix_handler = 'a t
 
-type 'a infix_handler = 'a -> 'a t
+and 'a infix_handler = int * ('a -> 'a t)
+
+
+and 'a grammar = {
+   infix : Token.t -> 'a infix_handler;
+  prefix : Token.t -> 'a prefix_handler
+}
 
 
 (* State Monad *)
@@ -73,9 +61,7 @@ let rec parse_loop : int -> 'a -> 'a t = fun rbp left ->
     if Token.is_end token then
       return left
     else
-      let lbp, infix = match grammar token with
-        | `Infix h -> h
-        | `Prefix _ -> failwith "Expected an infix handler." in
+      let lbp, infix = grammar.infix token in
       if (lbp > rbp) then
         advance >> infix left >>= fun new_left ->
           parse_loop rbp new_left
@@ -85,19 +71,19 @@ let rec parse_loop : int -> 'a -> 'a t = fun rbp left ->
 
 let parse_expression : int -> 'a t = fun rbp ->
   get >>= fun {token; grammar} ->
-    let prefix = match grammar token with
-      | `Prefix h -> h
-      | `Infix _ -> failwith "Expected a prefix handler." in
+    let prefix = grammar.prefix token in
     prefix >>= fun left ->
       advance >> parse_loop rbp left
 
 
 
 let infix precedence expr_builder =
-    `Infix (precedence, fun left ->
+    (precedence, fun left ->
         parse_expression precedence >>| fun right ->
             expr_builder left right)
 
 let prefix expr_builder =
-  fun x -> `Prefix (return (expr_builder x))
+  fun x -> return (expr_builder x)
+
+
 
