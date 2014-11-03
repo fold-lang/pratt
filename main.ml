@@ -1,28 +1,29 @@
 
 open Foundation
-open Parser
 
-    
+module Expression_Parser = Parser.Make(Expression)
+open Expression_Parser
 
 let parse_int = prefix (fun x -> Expression.Int (int_of_string x))
 let parse_var = prefix (fun x -> Expression.Var x)
 let parse_op  = function
   | "+" -> infix 50 (fun a b -> Expression.Add (a, b))
   | "*" -> infix 60 (fun a b -> Expression.Mul (a, b))
+  | "-" -> infix 50 (fun a b -> Expression.Sub (a, b))
   | x -> failwith ("Unknown operator symbol: `" ^ x ^ "`.")
 
-let get_prefix_handler : Token.t -> 'a Parser.prefix_handler =
+let get_prefix_handler : Token.t -> 'a prefix_handler =
   function Token.Number x -> parse_int x
          | Token.Symbol x -> parse_var x
-         | x -> failwith ("Unknown token: `" ^ (Token.to_string x) ^ "`")
+         | x -> failwith ("Unknown token type: `" ^ (Token.to_string x) ^ "`")
 
-let get_infix_handler : Token.t -> 'a Parser.infix_handler =
+let get_infix_handler : Token.t -> 'a infix_handler =
   function Token.Symbol x -> parse_op x
-         | x -> failwith ("Unknown token: `" ^ (Token.to_string x) ^ "`")
+         | x -> failwith ("Unknown token type: `" ^ (Token.to_string x) ^ "`")
 
 
 
-let expr_str = "2 + 1 * 3 + a"
+let expr_str = "2 + 1 * 3 + a - 4"
 let expr_env = function
     | "a" -> 4
     | "b" -> 2
