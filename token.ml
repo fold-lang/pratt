@@ -2,14 +2,14 @@
 
 type t =
     | Symbol of string
-    | Number of string
+    | Integer of int
     | End
 
 
 let to_string =
   function
   | Symbol x -> "#" ^ x
-  | Number x -> x
+  | Integer x -> string_of_int x
   | End -> "__end__"
 
 
