@@ -53,29 +53,21 @@ module Make (A: Language) = struct
 
     let rec parse_loop : int -> 'a -> 'a t =
         fun rbp left -> get >>= fun {token; grammar} ->
-            (* printf "Next token: %s\n" (Token.show token); *)
             let lbp, infix = grammar.infix token in
             if lbp > rbp then
                 advance >> infix left >>= fun new_left ->
-                    (* printf "Did parse infix expression: `%s`.\n"
-                    (A.show new_left); *)
                     parse_loop rbp new_left
             else
-                (* (printf "Cut on infix token: `%s` (lbp = 0x%x).\n"
-                       (Token.show token) lbp; *)
                 return left
 
     let parse_expression : int -> 'a t =
         fun rbp -> get >>= fun {token; grammar} ->
-            (* printf "Next token: %s\n" (Token.show token); *)
             let prefix = grammar.prefix token in
             advance >> prefix >>= fun left ->
-                (* printf "Did parse prefix expression: `%s`.\n"
-                       (A.show left); *)
                 parse_loop rbp left
 
-    (* Parser entrypoint. Parses the state and produces an expression. *)
-    let parse state =
+    let parse ~lexbuf ~grammar =
+        let state = {lexbuf; grammar; token = Token.Start} in
         first (run (parse_expression 0x0000) state)
 
 
@@ -91,6 +83,12 @@ module Make (A: Language) = struct
 
     let prefix precedence expr_builder =
         parse_expression precedence >>| expr_builder
+
+    let postfix precedence expr_builder =
+        (precedence, expr_builder)
+
+    (* postfix_handler : infix_handler *)
+
 end
 
 

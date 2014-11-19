@@ -26,7 +26,7 @@ let get_prefix_handler : Token.t -> 'a prefix_handler = function
 
 let get_infix_handler : Token.t -> 'a infix_handler = function
     | Token.Symbol x -> infix_operator_parselet x
-    | Token.End -> (0x0000, return)
+    | Token.End -> postfix 0x0000 return
     | x -> failwith ("Unknown infix token type: `" ^ (Token.show x) ^ "`")
 
 let expr_env = function
@@ -34,15 +34,19 @@ let expr_env = function
     | x -> failwith ("Unknown variable: `" ^ x ^ "`")
 
 
-let input_expr = "x = -a + b * c + d"
-let expr_lexbuf = Lexing.from_string input_expr
+let input = "2 + -3"
+let lexbuf = Lexing.from_string input
+let grammar = {
+    infix = get_infix_handler;
+    prefix = get_prefix_handler
+}
+
+let welcome_msg = "--\n-- Metaphor\n--"
 
 let () =
-    print "--\n-- Metaphor\n--";
-    let grammar = {infix = get_infix_handler; prefix = get_prefix_handler} in
-    let state = {lexbuf = expr_lexbuf; grammar; token = Token.Start} in
-    print_endline ("-> " ^ input_expr);
-    let expr = parse state in
-    print_endline (" = " ^ Expression.show expr)
+    print welcome_msg;
+    let result = parse ~lexbuf ~grammar in
+    print ("-> " ^ input);
+    print (" = " ^ Expression.show result)
 
 
