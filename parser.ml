@@ -1,8 +1,12 @@
 
 open Foundation
 
+module type Language = sig
+    type t
+    val show : t -> string
+end
 
-module Make (A: Type) = struct
+module Make (A: Language) = struct
     (* Parser Types *)
 
     type 'a t = state -> ('a * state) 
@@ -41,41 +45,52 @@ module Make (A: Type) = struct
 
     (* Parsing *)
 
-    let init_state lexbuf grammar =
-      let first_token = Lexer.token lexbuf in
-      {lexbuf; grammar; token = first_token}
-
     let advance : 'a t =
-      get >>= fun state ->
-        put {state with token = Lexer.token state.lexbuf}
+        get >>= fun state ->
+            put {state with token = Lexer.token state.lexbuf}
 
-    let rec parse_loop : int -> 'a -> 'a t = fun rbp left ->
-      get >>= fun {token; grammar} ->
-        if Token.is_end token then
-          return left
-        else
-          let lbp, infix = grammar.infix token in
-          if (lbp > rbp) then
-            advance >> infix left >>= fun new_left ->
-              parse_loop rbp new_left
-          else
-            return left
+    let consume : 'a t = advance >> get
 
-    let parse_expression : int -> 'a t = fun rbp ->
-      get >>= fun {token; grammar} ->
-        let prefix = grammar.prefix token in
-        prefix >>= fun left ->
-          advance >> parse_loop rbp left
+    let rec parse_loop : int -> 'a -> 'a t =
+        fun rbp left -> get >>= fun {token; grammar} ->
+            (* printf "Next token: %s\n" (Token.show token); *)
+            let lbp, infix = grammar.infix token in
+            if lbp > rbp then
+                advance >> infix left >>= fun new_left ->
+                    (* printf "Did parse infix expression: `%s`.\n"
+                    (A.show new_left); *)
+                    parse_loop rbp new_left
+            else
+                (* (printf "Cut on infix token: `%s` (lbp = 0x%x).\n"
+                       (Token.show token) lbp; *)
+                return left
 
-    (* Helpers *)
+    let parse_expression : int -> 'a t =
+        fun rbp -> get >>= fun {token; grammar} ->
+            (* printf "Next token: %s\n" (Token.show token); *)
+            let prefix = grammar.prefix token in
+            advance >> prefix >>= fun left ->
+                (* printf "Did parse prefix expression: `%s`.\n"
+                       (A.show left); *)
+                parse_loop rbp left
+
+    (* Parser entrypoint. Parses the state and produces an expression. *)
+    let parse state =
+        first (run (parse_expression 0x0000) state)
+
+
+    (* # Helpers *)
 
     let infix precedence expr_builder =
-        (precedence, fun left ->
-            parse_expression precedence >>| fun right ->
-                expr_builder left right)
+        (precedence, fun lexpr ->
+            parse_expression precedence >>| fun rexpr ->
+                expr_builder lexpr rexpr)
 
-    let prefix expr_builder =
-      fun x -> return (expr_builder x)
+    let atomic expr_builder =
+        fun x -> return (expr_builder x)
+
+    let prefix precedence expr_builder =
+        parse_expression precedence >>| expr_builder
 end
 
 

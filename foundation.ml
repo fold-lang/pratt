@@ -56,6 +56,10 @@ let (!!) s =
 
 let print = print_endline
 
+let printf = Printf.printf
+
+let log x = print ("-- " ^ x)
+
 
 let first (x, y) = x
 let second (x, y) = y
