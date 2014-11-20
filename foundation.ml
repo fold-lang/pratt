@@ -17,7 +17,7 @@ let ( >> ) = invcompose
 type void = Void
 
 (* Identity function. *)
-let id : 'a -> 'a = fun x -> x
+let identity : 'a -> 'a = fun x -> x
 
 let const x = fun _ -> x
 
@@ -58,8 +58,11 @@ let print = print_endline
 
 let printf = Printf.printf
 
+let format = Printf.sprintf
+
 let log x = print ("-- " ^ x)
 
+let error = failwith
 
 let first (x, y) = x
 let second (x, y) = y

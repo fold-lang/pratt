@@ -1,31 +1,39 @@
 
+open Foundation
+
 type t =
-    | Add of t * t
-    | Mul of t * t
-    | Sub of t * t
+    | Addition of t * t
+    | Subtraction of t * t
+    | Multiplication of t * t
     | Assignment of t * t
-    | Int of int
-    | Not of t
-    | End
+    | Sequence of t * t
+    | Integer of int
+    | Variable of string
+    | Negation of t
     | Start of t
-    | Var of string
+    | End
 
+let addition a b = Addition (a, b)
+let subtraction a b = Subtraction (a, b)
+let multiplication a b = Multiplication (a, b)
+let assignment a b = Assignment (a, b)
+let sequence a b = Sequence (a, b)
+let integer a = Integer a
+let variable a = Variable a
+let negation a = Negation a
+let start a = Start a
+let fim = End
 
-let rec show expr =
-  match expr with
-  | Add (e1, e2) ->
-      Printf.sprintf "(+ %s %s)" (show e1) (show e2)
-  | Mul (e1, e2) ->
-      Printf.sprintf "(* %s %s)" (show e1) (show e2)
-  | Sub (e1, e2) ->
-      Printf.sprintf "(- %s %s)" (show e1) (show e2)
-  | Int x -> string_of_int x
-  | Not x -> "(- " ^ (show x) ^ ")"
-  | Var x -> "(var " ^ x  ^ ")"
-  | End -> "(end)"
-  | Start x -> "(root " ^ (show x) ^ ")"
-  | Assignment (a, x) -> Printf.sprintf "(= %s %s)" (show a) (show x)
+let rec show = function
+  | Addition       (a, b) -> format "(%s + %s)" (show a) (show b)
+  | Subtraction    (a, b) -> format "(%s - %s)" (show a) (show b)
+  | Multiplication (a, b) -> format "(%s * %s)" (show a) (show b)
+  | Assignment     (a, b) -> format "(%s = %s)" (show a) (show b)
+  | Sequence       (a, b) -> format "(%s; %s)"  (show a) (show b)
+  | Integer             a -> format "%d" a
+  | Variable            a -> a
+  | Negation            a -> "-" ^ (show a)
+  | Start               a -> show a
+  | End                   -> "(fim)"
 
-
-let peek_expr e = Foundation.print (show e); e
 

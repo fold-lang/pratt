@@ -51,8 +51,8 @@ module Make (A: Language) = struct
 
     let consume : 'a t = advance >> get
 
-    let rec parse_loop : int -> 'a -> 'a t =
-        fun rbp left -> get >>= fun {token; grammar} ->
+    let rec parse_loop (rbp : int) (left : 'a) : 'a t =
+        get >>= fun {token; grammar} ->
             let lbp, infix = grammar.infix token in
             if lbp > rbp then
                 advance >> infix left >>= fun new_left ->
@@ -60,35 +60,32 @@ module Make (A: Language) = struct
             else
                 return left
 
-    let parse_expression : int -> 'a t =
-        fun rbp -> get >>= fun {token; grammar} ->
+    let parse_expression (rbp : int) : 'a t =
+        get >>= fun {token; grammar} ->
             let prefix = grammar.prefix token in
             advance >> prefix >>= fun left ->
                 parse_loop rbp left
 
     let parse ~lexbuf ~grammar =
         let state = {lexbuf; grammar; token = Token.Start} in
-        first (run (parse_expression 0x0000) state)
+        first (run (parse_expression Precedence.start) state)
 
 
     (* # Helpers *)
 
-    let infix precedence expr_builder =
-        (precedence, fun lexpr ->
-            parse_expression precedence >>| fun rexpr ->
-                expr_builder lexpr rexpr)
+    let infix precedence expr_cons =
+        (precedence,
+         fun left  -> parse_expression precedence >>=
+         fun right -> return (expr_cons left right))
 
-    let atomic expr_builder =
-        fun x -> return (expr_builder x)
+    let prefix precedence expr_cons =
+        parse_expression precedence >>=
+        fun right -> return (expr_cons right)
 
-    let prefix precedence expr_builder =
-        parse_expression precedence >>| expr_builder
+    let atomic a = return a
 
-    let postfix precedence expr_builder =
-        (precedence, expr_builder)
-
-    (* postfix_handler : infix_handler *)
-
+    let postfix precedence expr_cons =
+        (precedence, expr_cons)
 end
 
 

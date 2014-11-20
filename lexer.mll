@@ -5,7 +5,7 @@ let identifier =
 
 let digit = ['0'-'9']
 
-let symbol = ['+' '-' '*' '=' '(' ')']
+let symbol = ['+' '-' '*' '=' '(' ')' ';']
 
   
 rule token = parse
