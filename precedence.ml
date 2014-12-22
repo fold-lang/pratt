@@ -8,6 +8,17 @@ let addition       = 0x30
 let subtraction    = 0x30
 let multiplication = 0x40
 let exponent       = 0x50
+
+let infix          = 0x60
 let prefix         = 0x60
 let postfix        = 0x70
 let call           = 0x80
+
+
+let operator = function
+	| "=" -> assignment
+	| ";" -> sequence
+	| "+" -> addition
+	| "-" -> subtraction
+	| "*" -> multiplication
+	| _   -> infix

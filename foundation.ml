@@ -71,3 +71,4 @@ module type Type = sig
   type t
 end
 
+let join = String.concat
