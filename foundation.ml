@@ -75,3 +75,7 @@ let join = String.concat
 
 
 let curry f (x, y) = f x y
+
+type 'a result =
+	| Ok of 'a
+	| Error of string

@@ -9,7 +9,7 @@ end
 module Make (A: Language) = struct
     (* Parser Types *)
 
-    type 'a t = state -> ('a * state) 
+    type 'a t = state -> ('a * state)
 
     and state =
         { lexbuf  : Lexing.lexbuf
@@ -21,7 +21,7 @@ module Make (A: Language) = struct
         ; nud_provider : Token.t -> 'a nud }
 
     and 'a nud = 'a t
-    and 'a led  = int * ('a -> 'a t)
+    and 'a led = int * ('a -> 'a t
 
     (* State Monad *)
 
@@ -42,6 +42,15 @@ module Make (A: Language) = struct
     let get = fun s -> (s, s)
 
     let put s = fun _ -> ((), s)
+
+    let combine p1 p2 s = match p1 s with
+        | Ok expr    -> expr
+        | Error msg1 -> begin match p2 s with
+            | Ok expr    -> expr
+            | Error msg2 -> Error msg1
+        end
+
+    let (<|>) = combine
 
     (* Parsing *)
 

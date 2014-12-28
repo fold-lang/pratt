@@ -4,6 +4,7 @@ open Foundation
 module Expression_Parser = Parser.Make(Expression)
 open Expression_Parser
 
+
 let nud_provider : Token.t -> 'a nud = Expression.(function
     | Token.Integer x -> atomic (Expression.integer x)
     | Token.Symbol ("-" as op) | Token.Symbol ("+" as op) ->
@@ -30,7 +31,7 @@ let parse s =
     parse ~lexbuf ~grammar
 
 
-let run s = 
+let prompt s = 
     let e = parse s in
     print ("-> " ^ s);
     print (" = " ^ Expression.show e)
