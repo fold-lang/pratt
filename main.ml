@@ -24,19 +24,31 @@ let expr_env = function
     | x -> error ("Unknown variable: `" ^ x ^ "`")
 
 
-let exec input = 
-    let lexbuf = Lexing.from_string input in
-    let result = parse ~lexbuf ~grammar: { led_provider; nud_provider } in
-    print ("-> " ^ input);
-    print (" = " ^ Expression.show result)
+let parse s =
+    let lexbuf = Lexing.from_string s in
+    let grammar = { led_provider; nud_provider } in
+    parse ~lexbuf ~grammar
 
+
+let run s = 
+    let e = parse s in
+    print ("-> " ^ s);
+    print (" = " ^ Expression.show e)
+
+
+let test s e =
+    assert (parse s = e)
+
+
+open Expression
 
 let () =
-    exec "1";
-    exec "a";
-    exec "a = 3";
-    exec "2 + 3";
-    exec "2 + 3; a";
-    exec "";
-
+    List.iter (curry test) [
+        "",         (Start End);
+        "1",        (Start (Integer 1));
+        "a",        (Start (Variable "a"));
+        "2 + 2",    (Start (Application (["+"], [(Integer 2); (Integer 2)])));
+        "a = 3",    (Start (Application (["="], [(Variable "a"); (Integer 3)])));
+        "a; b",     (Start (Application ([";"], [(Variable "a"); (Variable "b")])));
+    ];
 

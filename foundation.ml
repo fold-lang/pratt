@@ -72,3 +72,6 @@ module type Type = sig
 end
 
 let join = String.concat
+
+
+let curry f (x, y) = f x y
