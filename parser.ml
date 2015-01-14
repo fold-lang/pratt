@@ -21,7 +21,7 @@ module Make (A: Language) = struct
         ; nud_provider : Token.t -> 'a nud }
 
     and 'a nud = 'a t
-    and 'a led = int * ('a -> 'a t
+    and 'a led = int * ('a -> 'a t)
 
     (* State Monad *)
 
