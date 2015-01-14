@@ -4,6 +4,7 @@ open Foundation
 module type Language = sig
     type t
     val show : t -> string
+    val empty : t
 end
 
 module Make (A: Language) = struct
@@ -20,7 +21,7 @@ module Make (A: Language) = struct
         { led_provider : Token.t -> ('a led option)
         ; nud_provider : Token.t -> ('a nud option)}
 
-    and 'a nud = 'a t
+    and 'a nud = 'a -> 'a t
     and 'a led = int * ('a -> 'a t)
 
     (* State Monad *)
@@ -60,20 +61,23 @@ module Make (A: Language) = struct
 
     let consume : 'a t = advance >> get
 
-    let rec parse_loop (rbp : int) (left : 'a) : 'a t =
+    let rec parse_loop (rbp : int) (left : A.t) : 'a t =
         get >>= fun {token; grammar} ->
-            match grammar.led_provider token with
-            | None -> error (format "No led for token `%s`." (Token.show token))
-            | Some (lbp, parser) ->
-                if lbp > rbp
-                    then advance >> parser left >>= parse_loop rbp
-                    else return left
+            match grammar.nud_provider token with
+            | Some nud_parser -> advance >> nud_parser left >>= parse_loop rbp
+            | None -> begin match grammar.led_provider token with
+                | None -> error (format "No led for token `%s`." (Token.show token))
+                | Some (lbp, led_parser) ->
+                    if lbp > rbp
+                        then advance >> led_parser left >>= parse_loop rbp
+                        else return left
+            end
 
     let parse_expression (rbp : int) : 'a t =
         get >>= fun {token; grammar} ->
             match grammar.nud_provider token with
             | None -> error (format "No nud for token `%s`." (Token.show token))
-            | Some parser -> advance >> parser >>= parse_loop rbp
+            | Some nud_parser -> advance >> nud_parser A.empty >>= parse_loop rbp
 
     let parse ~lexbuf ~grammar =
         let state = {lexbuf; grammar; token = Lexer.token lexbuf} in
