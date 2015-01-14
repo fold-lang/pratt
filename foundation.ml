@@ -72,6 +72,7 @@ module type Type = sig
 end
 
 let join = String.concat
+let map = List.map
 
 
 let curry f (x, y) = f x y

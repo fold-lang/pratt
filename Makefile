@@ -5,7 +5,7 @@ run: build
 	./main.byte
 
 build:
-	ocamlbuild main.byte
+	ocamlbuild -j 4 main.byte
 
 clean:
 	rm -rf _build *.byte *.native

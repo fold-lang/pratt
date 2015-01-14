@@ -75,27 +75,9 @@ module Make (A: Language) = struct
             | None -> error (format "No nud for token `%s`." (Token.show token))
             | Some parser -> advance >> parser >>= parse_loop rbp
 
-
     let parse ~lexbuf ~grammar =
-        let state = {lexbuf; grammar; token = Token.Start} in
+        let state = {lexbuf; grammar; token = Lexer.token lexbuf} in
         first (run (parse_expression Precedence.start) state)
-
-
-    (* # Helpers *)
-
-    let infix precedence expr_cons =
-        (precedence,
-         fun left  -> parse_expression precedence >>=
-         fun right -> return (expr_cons left right))
-
-    let prefix precedence expr_cons =
-        parse_expression precedence >>=
-        fun right -> return (expr_cons right)
-
-    let atomic a = return a
-
-    let postfix precedence expr_cons =
-        (precedence, expr_cons)
 end
 
 
