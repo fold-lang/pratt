@@ -1,16 +1,11 @@
 
 
 type t =
-    | Symbol of string
-    | Integer of int
     | Start
     | End
 
 
-let show =
-  function
-  | Symbol x -> "(symbol " ^ x ^ ")"
-  | Integer x -> "(int " ^ (string_of_int x) ^ ")"
+let show = function
   | Start -> "__start__"
   | End -> "__end__"
 
