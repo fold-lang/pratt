@@ -17,8 +17,8 @@ module Make (A: Language) = struct
         ; token   : Token.t }
 
     and 'a grammar =
-        { led_provider  : Token.t -> 'a led
-        ; nud_provider : Token.t -> 'a nud }
+        { led_provider : Token.t -> ('a led option)
+        ; nud_provider : Token.t -> ('a nud option)}
 
     and 'a nud = 'a t
     and 'a led = int * ('a -> 'a t)
@@ -62,18 +62,19 @@ module Make (A: Language) = struct
 
     let rec parse_loop (rbp : int) (left : 'a) : 'a t =
         get >>= fun {token; grammar} ->
-            let lbp, parser = grammar.led_provider token in
-            if lbp > rbp then
-                advance >> parser left >>= fun new_left ->
-                    parse_loop rbp new_left
-            else
-                return left
+            match grammar.led_provider token with
+            | None -> error (format "No led for token `%s`." (Token.show token))
+            | Some (lbp, parser) ->
+                if lbp > rbp
+                    then advance >> parser left >>= parse_loop rbp
+                    else return left
 
     let parse_expression (rbp : int) : 'a t =
         get >>= fun {token; grammar} ->
-            let parser = grammar.nud_provider token in
-            advance >> parser >>= fun left ->
-                parse_loop rbp left
+            match grammar.nud_provider token with
+            | None -> error (format "No nud for token `%s`." (Token.show token))
+            | Some parser -> advance >> parser >>= parse_loop rbp
+
 
     let parse ~lexbuf ~grammar =
         let state = {lexbuf; grammar; token = Token.Start} in
