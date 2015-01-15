@@ -80,3 +80,22 @@ let curry f (x, y) = f x y
 type 'a result =
 	| Ok of 'a
 	| Error of string
+
+let color_format color =
+	format "\027[%dm%s\027[0m"
+	   (match color with
+		| `Black   -> 30
+	    | `Red     -> 31
+	    | `Green   -> 32
+	    | `Yellow  -> 33
+	    | `Blue    -> 34
+	    | `Magenta -> 35
+	    | `Cyan    -> 36
+	    | `White   -> 37)
+
+let blue = color_format `Blue
+let red = color_format `Red
+let green = color_format `Green
+let yellow = color_format `Green
+let bright_white x = format "\027[1;37m%s\027[0m" x
+let bright_blue x = format "\027[1;34m%s\027[0m" x
