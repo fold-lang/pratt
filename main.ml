@@ -4,23 +4,29 @@ open Foundation
 module Expression_Parser = Parser.Make(Expression)
 open Expression_Parser
 
-(* error (format "no led for token %s" (Token.show t)) *)
 
-let nud_provider : Token.t -> 'a nud option = function
-  | Token.Letter x -> Some (function | (Expression.Nud nud) -> return (Expression.Nud (nud @ [x]))
-                     | _ -> error "needs a nud")
-  | _ -> None
+let grammar token = match token with
+  | Token.Letter x ->
+    {tok = token;
+     lbp = 0;
+     led = None;
+     nud = Some (function | (Expression.Nud nud) -> return (Expression.Nud (nud @ [x]))
+                          | _ -> error "needs a nud")}
+  | Token.Symbol x ->
+    {tok = token;
+     lbp = 5;
+     nud = None;
+     led = Some (fun l -> parse_expression 5 >>=
+                 fun r -> return (Expression.Led (x, l, r)))}
+  | Token.End ->
+    {tok = token;
+     lbp = 0;
+     nud = None;
+     led = Some return}
 
-let led_provider : Token.t -> 'a led option = function
-  | Token.Symbol x -> Some (5, fun l -> parse_expression 5 >>=
-                 fun r -> return (Expression.Led (x, l, r)))
-  | Token.End -> Some (0, return)
-  | _ -> None
 
-let parse (s : string) : Expression.t =
-  let lexbuf = Lexing.from_string s in
-  let grammar = { led_provider; nud_provider } in
-  parse ~lexbuf ~grammar
+let parse (input : string) : Expression.t =
+  parse ~lexbuf:(Lexing.from_string input) ~grammar
 
 let (~>) s =
   let e = parse s in
@@ -29,11 +35,11 @@ let (~>) s =
 
 let (=>) s e =
   let icon = if parse s = e
-               then (green "✓ ")
-               else (red "✗ ")
-  in
-    print_endline (format " %s %s" (bright_blue "->") (bright_white s));
-    print_endline (format "  %s %s %s\n" (yellow "=") (Expression.show e) icon)
+               then (cyan "✓ ")
+               else (red "✗ ") in
+    print_endline (format "%s %s" (bright_blue "->") (bright_white s));
+    print_endline (format ":: %s %s %s %s" (bright_red "Expression") "=" (Expression.show e) icon);
+    print_endline ""
 
 
 open Expression
@@ -42,3 +48,4 @@ let () =
   "a b"     => Nud ["a"; "b"];
   "a * b"   => Led ("*", Nud ["a"], Nud ["b"]);
   "f a * b" => Led ("*", Nud ["f"; "a"], Nud ["b"])
+

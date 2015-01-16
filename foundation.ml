@@ -53,7 +53,6 @@ let rec repeat_fn_to fn limit =
 let (!!) s =
     print_endline ("= " ^ s); s
 
-
 let print = print_endline
 
 let printf = Printf.printf
@@ -95,7 +94,9 @@ let color_format color =
 
 let blue = color_format `Blue
 let red = color_format `Red
+let magenta = color_format `Magenta
+let cyan = color_format `Cyan
 let green = color_format `Green
-let yellow = color_format `Green
 let bright_white x = format "\027[1;37m%s\027[0m" x
 let bright_blue x = format "\027[1;34m%s\027[0m" x
+let bright_red x = format "\027[1;31m%s\027[0m" x

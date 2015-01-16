@@ -8,21 +8,23 @@ module type Language = sig
 end
 
 module Make (A: Language) = struct
+
     (* Parser Types *)
 
     type 'a t = state -> ('a * state)
 
-    and state =
-        { lexbuf  : Lexing.lexbuf
-        ; grammar : A.t grammar
-        ; token   : Token.t }
+    and state = {
+        lexbuf  : Lexing.lexbuf;
+        grammar : Token.t -> A.t symbol;
+        symbol  : A.t symbol;
+    }
 
-    and 'a grammar =
-        { led_provider : Token.t -> ('a led option)
-        ; nud_provider : Token.t -> ('a nud option)}
-
-    and 'a nud = 'a -> 'a t
-    and 'a led = int * ('a -> 'a t)
+    and 'a symbol = {
+        tok : Token.t;
+        lbp : int;
+        led : ('a -> 'a t) option;
+        nud : ('a -> 'a t) option;
+    }
 
     (* State Monad *)
 
@@ -57,30 +59,34 @@ module Make (A: Language) = struct
 
     let advance : 'a t =
         get >>= fun state ->
-            put {state with token = Lexer.token state.lexbuf}
+            let tok = Lexer.token state.lexbuf in
+            let sym = state.grammar tok in
+            put {state with symbol = sym}
 
     let consume : 'a t = advance >> get
 
     let rec parse_loop (rbp : int) (left : A.t) : 'a t =
-        get >>= fun {token; grammar} ->
-            match grammar.nud_provider token with
+        get >>= fun {symbol} ->
+            match symbol.nud with
             | Some nud_parser -> advance >> nud_parser left >>= parse_loop rbp
-            | None -> begin match grammar.led_provider token with
-                | None -> error (format "No led for token `%s`." (Token.show token))
-                | Some (lbp, led_parser) ->
-                    if lbp > rbp
+            | None -> begin match symbol.led with
+                | None -> error (format "No led for token `%s`." (Token.show symbol.tok))
+                | Some led_parser ->
+                    if symbol.lbp > rbp
                         then advance >> led_parser left >>= parse_loop rbp
                         else return left
             end
 
     let parse_expression (rbp : int) : 'a t =
-        get >>= fun {token; grammar} ->
-            match grammar.nud_provider token with
-            | None -> error (format "No nud for token `%s`." (Token.show token))
+        get >>= fun {symbol} ->
+            match symbol.nud with
+            | None -> error (format "No nud for token `%s`." (Token.show symbol.tok))
             | Some nud_parser -> advance >> nud_parser A.empty >>= parse_loop rbp
 
     let parse ~lexbuf ~grammar =
-        let state = {lexbuf; grammar; token = Lexer.token lexbuf} in
+        let tok = Lexer.token lexbuf in
+        let sym = grammar tok in
+        let state = {lexbuf; grammar; symbol = sym} in
         first (run (parse_expression Precedence.start) state)
 end
 
