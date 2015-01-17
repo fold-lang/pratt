@@ -65,23 +65,29 @@ module Make (A: Language) = struct
 
     let consume : 'a t = advance >> get
 
-    let rec parse_loop (rbp : int) (left : A.t) : 'a t =
+    (* FIXME: The led cheking must be performed before nud.
+              If there is a nud and a led for a symbol, led should be used:
+
+              Ex: f a b - c, where (-) is led, but also has a nud.
+     *)
+    let rec parse_next (rbp : int) (e1 : A.t) : 'a t =
         get >>= fun {symbol} ->
-            match symbol.nud with
-            | Some nud_parser -> advance >> nud_parser left >>= parse_loop rbp
-            | None -> begin match symbol.led with
-                | None -> error (format "No led for token `%s`." (Token.show symbol.tok))
-                | Some led_parser ->
-                    if symbol.lbp > rbp
-                        then advance >> led_parser left >>= parse_loop rbp
-                        else return left
-            end
+            match symbol.led with
+            | None -> begin match symbol.nud with
+                | Some nud_parser ->
+                    advance >> nud_parser e1 >>= fun e2 -> parse_next rbp e2
+                | None ->  error (format "No led and no nud for token `%s`." (Token.show symbol.tok))
+                end
+            | Some led_parser ->
+                if symbol.lbp > rbp
+                    then advance >> led_parser e1 >>= parse_next rbp
+                    else return e1
 
     let parse_expression (rbp : int) : 'a t =
         get >>= fun {symbol} ->
             match symbol.nud with
             | None -> error (format "No nud for token `%s`." (Token.show symbol.tok))
-            | Some nud_parser -> advance >> nud_parser A.empty >>= parse_loop rbp
+            | Some nud_parser -> advance >> nud_parser A.empty >>= parse_next rbp
 
     let parse ~lexbuf ~grammar =
         let tok = Lexer.token lexbuf in
