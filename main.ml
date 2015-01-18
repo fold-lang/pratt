@@ -5,31 +5,33 @@ module Expression_Parser = Parser.Make(Expression)
 open Expression_Parser
 
 let minus_symbol tok =
-    let expr_sym = Expression.Sym "-" in
+    let open Expression in
     {tok = tok;
      lbp = 5;
-     nud = Some (fun e1 -> return (Expression.append e1 expr_sym));
+     nud = Some (return (Sym "-"));
      led = Some (fun e1 -> parse_expression 5 >>=
-         fun e2 -> return (Expression.Led (expr_sym, e1, e2)))}
+                 fun e2 -> return (Led (Sym "-", e1, e2)))}
 
-let grammar token = match token with
-  | Token.Letter x ->
-          {tok = token;
-     lbp = 0;
-     led = None;
-     nud = Some (fun e1 -> return (Expression.append e1 (Expression.Sym x)))}
-  | (Token.Symbol "-") as tok -> minus_symbol tok
-  | Token.Symbol x ->
-          {tok = token;
-     lbp = 5;
-     nud = None;
-     led = Some (fun l -> parse_expression 5 >>=
-         fun r -> return (Expression.Led (Expression.Sym(x), l, r)))}
-  | Token.End ->
-          {tok = token;
-     lbp = 0;
-     nud = None;
-     led = Some return}
+let grammar token =
+    let open Expression in
+    match token with
+    | Token.Letter x ->
+        {tok = token;
+         lbp = 0;
+         led = None;
+         nud = Some (return (Sym x))}
+    | (Token.Symbol "-") as tok -> minus_symbol tok
+    | Token.Symbol x ->
+        {tok = token;
+         lbp = 5;
+         nud = None;
+         led = Some (fun e1 -> parse_expression 5 >>=
+                     fun e2 -> return (Led (Sym x , e1, e2)))}
+    | Token.End ->
+        {tok = token;
+         lbp = 0;
+         nud = None;
+         led = Some return}
 
 
 let parse (input : string) : Expression.t =
@@ -40,12 +42,12 @@ let (~>) s =
     print ("-> " ^ s);
   print (" = " ^ Expression.show e)
 
-let (=>) s e =
+let (==) s e =
     let r = parse s in
     let y = r = e in
-    let i = if y then (cyan "✓ ") else (red "✗ ") in
-    print_endline (format "%s %s" (bright_blue "->") (bright_white s));
-    print_endline (format ":: %s %s %s %s" (bright_red "Expression") "=" (Expression.show e) i);
+    let i = if y then (green "✓ ") else (red "✗ ") in
+    print_endline (format "%s %s %s" (bright_blue "->") (bright_white s) i);
+    print_endline (format " = %s %s %s" (Expression.show e) "::" (bright_red "Expression"));
     if not y then
         (print_endline (format "\n  Expected: %s" (Expression.show e));
        print_endline (format "    Actual: %s\n" (Expression.show r)))
@@ -55,12 +57,16 @@ let (=>) s e =
 
 let () =
     let open Expression in
-    "a"        => Nud [Sym "a"];
-    "a b"      => Nud [Sym "a"; Sym "b"];
-    "a * b"    => Led (Sym "*", Nud [Sym "a"], Nud [Sym "b"]);
-    "f a * b"  => Led (Sym "*", Nud [Sym "f"; Sym "a"], Nud [Sym "b"]);
-    "a * f b"  => Led (Sym "*", Nud [Sym "a"], Nud [Sym "f"; Sym "b"]);
-    "f a b c"  => Nud [Sym "f"; Sym "a"; Sym "b"; Sym "c"];
-    "-a"       => Nud [Sym "-"; Sym "a"];
-    "-a b + c" => Led (Sym "+", Nud [Sym "-"; Sym "a"; Sym "b"], Nud [Sym "c"]);
+    "a"        == Sym "a";
+    "f a"      == Nud [Sym "f"; Sym "a"];
+    "a * b"    == Led (Sym "*", Sym "a", Sym "b");
+    "f a * b"  == Led (Sym "*", Nud [Sym "f"; Sym "a"], Sym "b");
+    "a * f b"  == Led (Sym "*", Sym "a", Nud [Sym "f"; Sym "b"]);
+    "f a b c"  == Nud [Sym "f"; Sym "a"; Sym "b"; Sym "c"];
+    "-a"       == Nud [Sym "-"; Sym "a"];
+    "-a b + c" == Led (Sym "+", Nud [Sym "-"; Sym "a"; Sym "b"], Sym "c");
+
+    ~> "f x y + - g a - b";
+    ~> "- - -" (* FIXME: (-) must require at least 1 arg. *)
+
 

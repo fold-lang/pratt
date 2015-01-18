@@ -37,6 +37,9 @@ let defined_option = function
 	| None -> false
 
 
+let (=>) = (|>)
+
+
 let rec repeat_until fn limit =
 	let x = fn () in
 	if (x = limit)
@@ -100,3 +103,4 @@ let green = color_format `Green
 let bright_white x = format "\027[1;37m%s\027[0m" x
 let bright_blue x = format "\027[1;34m%s\027[0m" x
 let bright_red x = format "\027[1;31m%s\027[0m" x
+

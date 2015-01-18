@@ -19,6 +19,6 @@ let append e1 e2 =
 
 let rec show = function
     | Sym x -> x
-    | Nud xs -> format "(%s)" (join " " (map show xs))
+    | Nud xs -> format "[%s]" (join " " (map show xs))
     | Led (x, l, r) -> format "(%s %s %s)" (show l) (show x) (show r)
 

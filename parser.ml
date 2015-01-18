@@ -5,6 +5,7 @@ module type Language = sig
     type t
     val show : t -> string
     val empty : t
+    val append : t -> t -> t
 end
 
 module Make (A: Language) = struct
@@ -23,7 +24,7 @@ module Make (A: Language) = struct
         tok : Token.t;
         lbp : int;
         led : ('a -> 'a t) option;
-        nud : ('a -> 'a t) option;
+        nud : 'a t option;
     }
 
     (* State Monad *)
@@ -65,29 +66,23 @@ module Make (A: Language) = struct
 
     let consume : 'a t = advance >> get
 
-    (* FIXME: The led cheking must be performed before nud.
-              If there is a nud and a led for a symbol, led should be used:
-
-              Ex: f a b - c, where (-) is led, but also has a nud.
-     *)
     let rec parse_next (rbp : int) (e1 : A.t) : 'a t =
-        get >>= fun {symbol} ->
-            match symbol.led with
-            | None -> begin match symbol.nud with
-                | Some nud_parser ->
-                    advance >> nud_parser e1 >>= fun e2 -> parse_next rbp e2
-                | None ->  error (format "No led and no nud for token `%s`." (Token.show symbol.tok))
-                end
+        get >>= fun {symbol} -> symbol.led => function
+            | None -> symbol.nud => (function
+                | Some nud_parser -> advance >> nud_parser >>=
+                    fun e2 -> parse_next rbp (A.append e1 e2)
+                | None -> error (format "No led and no nud for token `%s`."
+                                    (Token.show symbol.tok)))
             | Some led_parser ->
-                if symbol.lbp > rbp
-                    then advance >> led_parser e1 >>= parse_next rbp
-                    else return e1
+                if symbol.lbp > rbp then
+                    advance >> led_parser e1 >>= parse_next rbp
+                else
+                    return e1
 
     let parse_expression (rbp : int) : 'a t =
-        get >>= fun {symbol} ->
-            match symbol.nud with
+        get >>= fun {symbol} -> symbol.nud => function
             | None -> error (format "No nud for token `%s`." (Token.show symbol.tok))
-            | Some nud_parser -> advance >> nud_parser A.empty >>= parse_next rbp
+            | Some nud_parser -> advance >> nud_parser >>= parse_next rbp
 
     let parse ~lexbuf ~grammar =
         let tok = Lexer.token lexbuf in
