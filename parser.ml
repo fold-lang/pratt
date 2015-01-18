@@ -89,6 +89,10 @@ module Make (A: Language) = struct
         let sym = grammar tok in
         let state = {lexbuf; grammar; symbol = sym} in
         first (run (parse_expression Precedence.start) state)
+
+
+    (* # Helpers *)
+
 end
 
 

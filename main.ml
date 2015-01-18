@@ -4,14 +4,6 @@ open Foundation
 module Expression_Parser = Parser.Make(Expression)
 open Expression_Parser
 
-let minus_symbol tok =
-    let open Expression in
-    {tok = tok;
-     lbp = 5;
-     nud = Some (return (Sym "-"));
-     led = Some (fun e1 -> parse_expression 5 >>=
-                 fun e2 -> return (Led (Sym "-", e1, e2)))}
-
 let grammar token =
     let open Expression in
     match token with
@@ -19,14 +11,19 @@ let grammar token =
         {tok = token;
          lbp = 0;
          led = None;
-         nud = Some (return (Sym x))}
-    | (Token.Symbol "-") as tok -> minus_symbol tok
-    | Token.Symbol x ->
+         nud = Some (return (Atom x))}
+    | Token.Symbol "-" ->
+        {tok = token;
+         lbp = 5;
+         nud = Some (return (Atom "-"));
+         led = Some (fun e1 -> parse_expression 5 >>=
+                     fun e2 -> return (List [Atom "-"; e1; e2]))}
+    | Token.Symbol a ->
         {tok = token;
          lbp = 5;
          nud = None;
          led = Some (fun e1 -> parse_expression 5 >>=
-                     fun e2 -> return (Led (Sym x , e1, e2)))}
+                     fun e2 -> return (List [Atom a; e1; e2]))}
     | Token.End ->
         {tok = token;
          lbp = 0;
@@ -57,14 +54,14 @@ let (==) s e =
 
 let () =
     let open Expression in
-    "a"        == Sym "a";
-    "f a"      == Nud [Sym "f"; Sym "a"];
-    "a * b"    == Led (Sym "*", Sym "a", Sym "b");
-    "f a * b"  == Led (Sym "*", Nud [Sym "f"; Sym "a"], Sym "b");
-    "a * f b"  == Led (Sym "*", Sym "a", Nud [Sym "f"; Sym "b"]);
-    "f a b c"  == Nud [Sym "f"; Sym "a"; Sym "b"; Sym "c"];
-    "-a"       == Nud [Sym "-"; Sym "a"];
-    "-a b + c" == Led (Sym "+", Nud [Sym "-"; Sym "a"; Sym "b"], Sym "c");
+    "a"        == Atom "a";
+    "f a"      == List [Atom "f"; Atom "a"];
+    "a * b"    == List [Atom "*"; Atom "a"; Atom "b"];
+    "f a * b"  == List [Atom "*"; List [Atom "f"; Atom "a"]; Atom "b"];
+    "a * f b"  == List [Atom "*"; Atom "a"; List [Atom "f"; Atom "b"]];
+    "f a b c"  == List [Atom "f"; Atom "a"; Atom "b"; Atom "c"];
+    "-a"       == List [Atom "-"; Atom "a"];
+    "-a b + c" == List [Atom "+"; List [Atom "-"; Atom "a"; Atom "b"]; Atom "c"];
 
     ~> "f x y + - g a - b";
     ~> "- - -" (* FIXME: (-) must require at least 1 arg. *)
