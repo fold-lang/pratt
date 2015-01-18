@@ -53,6 +53,7 @@ let rec repeat_fn_to fn limit =
 		then []
 		else [x] @ repeat_fn_to fn limit
 
+let (!?) x = print_endline "*"; x
 let (!!) s =
     print_endline ("= " ^ s); s
 
