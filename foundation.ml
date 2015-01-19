@@ -104,4 +104,5 @@ let green = color_format `Green
 let bright_white x = format "\027[1;37m%s\027[0m" x
 let bright_blue x = format "\027[1;34m%s\027[0m" x
 let bright_red x = format "\027[1;31m%s\027[0m" x
+let bright_green x = format "\027[1;32m%s\027[0m" x
 

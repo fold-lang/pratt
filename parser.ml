@@ -66,30 +66,26 @@ module Make (A: Language) = struct
 
     let consume : 'a t = advance >> get
 
-    let rec parse_next (rbp : int) (e1 : A.t) : 'a t =
-        get >>= fun {symbol} -> symbol.led => function
-            | None -> symbol.nud => (function
-                | Some nud_parser -> advance >> nud_parser >>=
-                    fun e2 -> parse_next rbp (A.append e1 e2)
-                | None -> error (format "No led and no nud for token `%s`."
-                                    (Token.show symbol.tok)))
-            | Some led_parser ->
-                if symbol.lbp > rbp then
-                    advance >> led_parser e1 >>= parse_next rbp
-                else
-                    return e1
+    let rec parse_next (rbp : int) (a : A.t) : 'a t =
+        get >>= fun {symbol} ->
+            (symbol.led, symbol.nud) => function
+            | (Some led, _) -> if symbol.lbp > rbp
+                               then advance >> led a >>= fun b -> parse_next rbp b
+                               else return a
+            | (None, Some nud) -> advance >> nud >>= fun b -> parse_next rbp (A.append a b)
+            | (None, None) -> error (format "Error: No parser for token %s"
+                                            (Token.show symbol.tok))
 
     let parse_expression (rbp : int) : 'a t =
         get >>= fun {symbol} -> symbol.nud => function
             | None -> error (format "No nud for token `%s`." (Token.show symbol.tok))
-            | Some nud_parser -> advance >> nud_parser >>= parse_next rbp
+            | Some nud -> advance >> nud >>= parse_next rbp
 
     let parse ~lexbuf ~grammar =
         let tok = Lexer.token lexbuf in
         let sym = grammar tok in
         let state = {lexbuf; grammar; symbol = sym} in
         first (run (parse_expression Precedence.start) state)
-
 
     (* # Helpers *)
 

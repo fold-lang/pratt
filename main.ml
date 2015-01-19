@@ -16,14 +16,14 @@ let grammar token =
         {tok = token;
          lbp = 5;
          nud = Some (return (Atom "-"));
-         led = Some (fun e1 -> parse_expression 5 >>=
-                     fun e2 -> return (List [Atom "-"; e1; e2]))}
-    | Token.Symbol a ->
+         led = Some (fun a -> parse_expression 5 >>=
+                     fun b -> return (List [Atom "-"; a; b]))}
+    | Token.Symbol x ->
         {tok = token;
          lbp = 5;
          nud = None;
-         led = Some (fun e1 -> parse_expression 5 >>=
-                     fun e2 -> return (List [Atom a; e1; e2]))}
+         led = Some (fun a -> parse_expression 5 >>=
+                     fun b -> return (List [Atom x; a; b]))}
     | Token.End ->
         {tok = token;
          lbp = 0;
@@ -42,9 +42,9 @@ let (~>) s =
 let (==) s e =
     let r = parse s in
     let y = r = e in
-    let i = if y then (green "✓ ") else (red "✗ ") in
+    let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
     print_endline (format "%s %s %s" (bright_blue "->") (bright_white s) i);
-    print_endline (format " = %s %s %s" (Expression.show e) "::" (bright_red "Expression"));
+    print_endline (format " = %s %s %s" (Expression.show e) "::" (red "Expression"));
     if not y then
         (print_endline (format "\n  Expected: %s" (Expression.show e));
        print_endline (format "    Actual: %s\n" (Expression.show r)))
