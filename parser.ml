@@ -69,10 +69,12 @@ module Make (A: Language) = struct
     let rec parse_next (rbp : int) (a : A.t) : 'a t =
         get >>= fun {symbol} ->
             (symbol.led, symbol.nud) => function
-            | (Some led, _) -> if symbol.lbp > rbp
-                               then advance >> led a >>= fun b -> parse_next rbp b
-                               else return a
-            | (None, Some nud) -> advance >> nud >>= fun b -> parse_next rbp (A.append a b)
+            | (Some led, _) -> (if symbol.lbp > rbp
+                                then advance >> led a >>= fun b ->
+                                    parse_next rbp b
+                                else return a)
+            | (None, Some nud) -> advance >> nud >>= fun b ->
+                                    parse_next rbp (A.append a b)
             | (None, None) -> error (format "Error: No parser for token %s"
                                             (Token.show symbol.tok))
 

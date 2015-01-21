@@ -18,6 +18,11 @@ let grammar token =
          nud = Some (return (Atom "-"));
          led = Some (fun a -> parse_expression 5 >>=
                      fun b -> return (List [Atom "-"; a; b]))}
+    | Token.Symbol ("--" as post) ->
+        {tok = token;
+         lbp = 5;
+         nud = None;
+         led = Some (fun a -> return (List [Atom post; a]))}
     | Token.Symbol x ->
         {tok = token;
          lbp = 5;
@@ -27,7 +32,7 @@ let grammar token =
     | Token.End ->
         {tok = token;
          lbp = 0;
-         nud = None;
+         nud = Some (return (Atom "haha"));
          led = Some return}
 
 
@@ -61,9 +66,11 @@ let () =
     "a * f b"  == List [Atom "*"; Atom "a"; List [Atom "f"; Atom "b"]];
     "f a b c"  == List [Atom "f"; Atom "a"; Atom "b"; Atom "c"];
     "-a"       == List [Atom "-"; Atom "a"];
+    "a --"     == List [Atom "--"; Atom "a"];
     "-a b + c" == List [Atom "+"; List [Atom "-"; Atom "a"; Atom "b"]; Atom "c"];
 
     ~> "f x y + - g a - b";
+    ~> "- f a b - c --";
     ~> "- - -" (* FIXME: (-) must require at least 1 arg. *)
 
 
