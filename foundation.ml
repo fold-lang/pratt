@@ -9,10 +9,10 @@ let compose f g = fun x -> f (g x)
 let invcompose g f = fun x -> f (g x)
 
 (* Infix function composition operator. *)
-let ( << ) = compose
+let (<<) = compose
 
 (* Infix inverse function composition operator. *)
-let ( >> ) = invcompose
+let (>>) = invcompose
 
 type void = Void
 
@@ -67,8 +67,8 @@ let log x = print ("-- " ^ x)
 
 let error = failwith
 
-let first (x, y) = x
-let second (x, y) = y
+let first (x, _) = x
+let second (_, y) = y
 
 module type Type = sig
   type t
@@ -106,3 +106,25 @@ let bright_blue x = format "\027[1;34m%s\027[0m" x
 let bright_red x = format "\027[1;31m%s\027[0m" x
 let bright_green x = format "\027[1;32m%s\027[0m" x
 
+
+module Lazy_stream = struct
+  type 'a t = Cons of 'a * 'a t Lazy.t | Nil
+
+  let of_stream stream =
+    let rec next stream =
+      try Cons(Stream.next stream, lazy (next stream))
+      with Stream.Failure -> Nil
+    in
+    next stream
+
+  let of_function f =
+    let rec next f =
+      match f () with
+      | Some x -> Cons(x, lazy (next f))
+      | None -> Nil
+    in
+    next f
+
+  let of_string str = str |> Stream.of_string |> of_stream
+  let of_channel ic = ic |> Stream.of_channel |> of_stream
+end
