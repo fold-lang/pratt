@@ -44,10 +44,12 @@ let (<|>) p q = fun s ->
     | Error _ -> q s
     | ok -> ok
 
-let next = get >>= fun s ->
+let advance = get >>= fun s ->
   let token  = read_token s.input in
   let symbol = s.grammar token in
   	put { s with symbol = symbol }
+
+let consume = advance >> get
 
 let option x p = p <|> return x
 let optional p = option () (p >> return ())
