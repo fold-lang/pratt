@@ -13,7 +13,8 @@ and state =
     symbol  : symbol }
 
 and symbol =
-  { lbp : int;
+  { tok : token;
+    lbp : int;
     led : expr -> expr parser;
     nud : expr parser }
 
@@ -45,9 +46,9 @@ let (<|>) p q = fun s ->
     | ok -> ok
 
 let advance = get >>= fun s ->
-  let token  = read_token s.input in
-  let symbol = s.grammar token in
-  	put { s with symbol = symbol }
+    let token  = read_token s.input in
+    let symbol = s.grammar token in
+    put { s with symbol = symbol }
 
 let consume = advance >> get
 
@@ -87,4 +88,14 @@ let letter    = lower  <|> upper
 let alpha_num = letter <|> digit
 let hex_digit = range 'a' 'f' <|> range 'A' 'F'
 let oct_digit = range '0' '7'
+
+(* -- Error Handling -- *)
+
+let led_error t = fun _ ->
+    error (format "%s: symbol %s takes no arguments."
+            (show_location t.location) (show_literal t.value))
+
+let nud_error t =
+    error (format "%s: symbol %s requires a left argument."
+            (show_location t.location) (show_literal t.value))
 

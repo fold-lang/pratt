@@ -17,7 +17,6 @@ let show_literal = function
     | Float   x -> format "%f" x
     | Integer x -> format "%d" x
 
-
 (* -- Location -- *)
 
 type location =
@@ -26,7 +25,7 @@ type location =
     column   : int }
 
 let empty_location =
-	{ filename = "";
+	{ filename = "none";
 	  line     = 0;
 	  column   = 0 }
 
@@ -47,6 +46,9 @@ let create_token value ?loc_opt () =
       location = loc_opt => function
         | Some loc -> loc
         | None -> empty_location }
+
+let end_token   = create_token (Symbol "__end__")   ()
+let start_token = create_token (Symbol "__start__") ()
 
 let show_token tok =
     format "%s @ %s" (show_literal  tok.value)
@@ -81,6 +83,6 @@ rule read_token = parse
   | _ as c
     { failwith ("Unrecognized character: " ^ (String.make 1 c)) }
   | eof
-    { create_token (Symbol "__end__") () }
+    { end_token }
 
 
