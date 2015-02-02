@@ -16,5 +16,5 @@ let append_expr e1 e2 = (e1, e2) => function
 
 let rec show_expr = function
     | Atom x -> show_literal x
-    | List l -> format "(%s)" (join " " (map show_expr l))
+    | List l -> format "(%s)" (join ", " (map show_expr l))
 

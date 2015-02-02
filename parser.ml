@@ -15,8 +15,8 @@ and state =
 and symbol =
   { tok : token;
     lbp : int;
-    led : expr -> expr parser;
-    nud : expr parser }
+    led : (expr -> expr parser) option;
+    nud : (expr parser) option }
 
 let run p     = fun s -> p s
 let get       = fun s -> Ok (s, s)
@@ -42,7 +42,10 @@ let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
 
 let (<|>) p q = fun s ->
     match p s with
-    | Error _ -> q s
+    | Error m -> begin match q s with
+        | Error _ -> Error m
+        | ok -> ok
+    end
     | ok -> ok
 
 let advance = get >>= fun s ->

@@ -8,32 +8,33 @@ open Pratt
 
 let __start__ = { tok = start_token;
                   lbp = 0xFF;
-                  nud = return empty_expr;
-                  led = led_error start_token }
+                  nud = Some (return empty_expr);
+                  led = None }
 
 let __end__ = { tok = end_token;
                 lbp = 0x00;
-                nud = nud_error end_token;
-                led = return }
+                nud = None;
+                led = Some return }
 
 let infix tok lbp =
     { tok = tok;
       lbp = lbp;
-      led = (fun a -> parse_expression lbp >>=
-             fun b -> return (List [Atom tok.value; a; b]));
-      nud = nud_error tok }
+      led = Some (fun a -> parse_expression lbp >>=
+                  fun b -> return (List [Atom tok.value; a; b]));
+      nud = None }
 
 let var tok =
     { tok = tok;
-      lbp = 0x01;
-      led = led_error tok;
-      nud = return (Atom tok.value) }
+      lbp = 0xff;
+      led = None;
+      nud = Some (return (Atom tok.value)) }
 
 let grammar tok =
     tok => function
     | { value = Symbol "*" } -> infix tok 0x50
     | { value = Symbol "+" } -> infix tok 0x40
     | { value = Symbol "a" } -> var tok
+    | { value = Symbol "f" } -> var tok
     | tok when tok = end_token -> __end__
     | tok -> raise (Failure (format "`%s" (show_token tok)))
 
@@ -65,10 +66,14 @@ let (==) s e =
 let a = Atom (Symbol "a")
 let ( + ) a b = List [Atom (Symbol "+"); a; b]
 let ( * ) a b = List [Atom (Symbol "*"); a; b]
+let f a = List [Atom (Symbol "f"); a]
 
 let () =
     "a" == a;
     "a + a" == a + a;
-    "a + a * a" == (a + (a * a))
+    "a + a * a" == (a + (a * a));
+    "f a" == f a;
+    "f a + a" == (f a) + a;
+    "f a + f a" == (f a) + (f a);
 
 
