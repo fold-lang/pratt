@@ -3,20 +3,19 @@ open Foundation
 open Lexicon
 
 type expr =
-    | List of expr list
+    | Term of literal * expr list
     | Atom of literal
 
 let rec show_expr = function
     | Atom x -> show_literal x
-    | List l -> format "(%s)" (join ", " (map show_expr l))
+    | Term (f, args) -> format "(%s: %s)" (show_literal f) (join " " (map show_expr args))
 
-let empty_expr = List []
+let empty_expr = Term (Symbol "", [])
 
 let append_expr e1 e2 =
     print (format "append %s %s" (show_expr e1) (show_expr e2));
     (e1, e2) => function
-    | List l1, List l2 -> List (l1 @ l2)
-    | e, List l -> List (e::l)
-    | List l, e -> List (l @ [e])
-    | _, _ -> List [e1; e2]
+    | Term (f, args), _ -> Term (f, args @ [e2])
+    | Atom a, Atom b -> Term (a, [e2])
+    | _ -> raise (Failure (format "Cannot append: %s %s" (show_expr e1) (show_expr e2)))
 

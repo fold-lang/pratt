@@ -8,7 +8,9 @@ open Pratt
 
 let __start__ = { tok = start_token;
                   lbp = 0x00;
-                  nud = Some (parse_expression 0 >>= fun a -> return (List [a]));
+                  (* TODO: Instead of an `a` parse many. *)
+                  nud = Some (parse_expression 0 >>= fun a ->
+                                return (Term (Symbol "module", [a])));
                   led = None }
 
 let __end__ = { tok = end_token;
@@ -20,7 +22,7 @@ let infix tok lbp =
     { tok = tok;
       lbp = lbp;
       led = Some (fun a -> parse_expression lbp >>=
-                  fun b -> return (List [Atom tok.value; a; b]));
+                  fun b -> return (Term (tok.value, [a; b])));
       nud = None }
 
 let var tok =
@@ -78,11 +80,11 @@ let (==) s e =
 let a         = Atom (Symbol "a")
 let b         = Atom (Symbol "b")
 let c         = Atom (Symbol "c")
-let ( + ) a b = List [Atom (Symbol "+"); a; b]
-let ( * ) a b = List [Atom (Symbol "*"); a; b]
-let f a       = List [Atom (Symbol "f"); a]
-let g a b c   = List [Atom (Symbol "g"); a; b; c]
-let m es      = List es
+let ( + ) a b = Term (Symbol "+", [a; b])
+let ( * ) a b = Term (Symbol "*", [a; b])
+let f b       = Term (Symbol "f", [a])
+let g a b c   = Term (Symbol "g", [a; b; c])
+let m es      = Term (Symbol "module", es)
 
 let () =
     "a"         == m [a];
