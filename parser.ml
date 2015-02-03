@@ -94,7 +94,7 @@ let oct_digit = range '0' '7'
 
 (* -- Error Handling -- *)
 
-let led_error t = fun _ ->
+let led_error t =
     error (format "%s: symbol %s takes no arguments."
             (show_location t.location) (show_literal t.value))
 

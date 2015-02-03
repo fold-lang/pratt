@@ -6,16 +6,23 @@ open Parser
 open Pratt
 
 
-let __start__ = { tok = start_token;
-                  lbp = 0x00;
-                  (* TODO: Instead of an `a` parse many. *)
-                  nud = Some (parse_expression 0 >>= fun a ->
-                                return (Term (Symbol "module", [a])));
-                  led = None }
+(*
+Adapt the parser to use many. map term to list.
+*)
+
+let prefix tok expr_builder =
+    { tok = tok;
+      lbp = 0x00;
+      nud = Some expr_builder;
+      led = None }
+
+let __start__ =
+    prefix start_token
+        (many (parse_expression 0) >>= fun xs -> return (Term (Symbol "module", xs)))
 
 let __end__ = { tok = end_token;
                 lbp = 0x00;
-                nud = None;
+                nud = None; 
                 led = Some return }
 
 let infix tok lbp =
@@ -38,7 +45,6 @@ let left_paren tok =
       led = None;
       nud = Some (parse_expression 0 >>= fun a ->
                   advance >> return a) }
-
 
 let grammar tok =
     tok => function
