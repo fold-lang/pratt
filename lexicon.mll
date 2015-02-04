@@ -47,8 +47,10 @@ let create_token value ?loc_opt () =
         | Some loc -> loc
         | None -> empty_location }
 
-let end_token   = create_token (Symbol "__end__")   ()
-let start_token = create_token (Symbol "__start__") ()
+let tok v = create_token v ()
+
+let end_token   = create_token (Symbol "end")   ()
+let start_token = create_token (Symbol "module") ()
 
 let show_token tok =
     format "%s @ %s" (show_literal  tok.value)
@@ -60,7 +62,7 @@ let newline_char    = ('\013'* '\010')
 let blank_char      = [' ' '\009' '\012']
 let identifier_char = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
 let operator_char   = ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<'
-                       '=' '>' '?' '@' '^' '|' '~' '(' ')']
+                       '=' '>' '?' '@' '^' '|' '~' '(' ')' '`']
 let decimal_literal = ['0'-'9'] ['0'-'9' '_']*
 let hex_literal     = '0' ['x' 'X'] ['0'-'9' 'A'-'F' 'a'-'f']['0'-'9' 'A'-'F' 'a'-'f' '_']*
 let oct_literal     = '0' ['o' 'O'] ['0'-'7'] ['0'-'7' '_']*

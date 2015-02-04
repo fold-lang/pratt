@@ -2,9 +2,8 @@
 open Foundation
 open Lexicon
 
-type expr =
-    | Term of literal * expr list
-    | Atom of literal
+type expr = Atom of literal
+          | Term of literal * expr list
 
 let rec show_expr = function
     | Atom x -> show_literal x
@@ -13,7 +12,7 @@ let rec show_expr = function
 let empty_expr = Term (Symbol "", [])
 
 let append_expr e1 e2 =
-    print (format "append %s %s" (show_expr e1) (show_expr e2));
+    (* print (format "append %s %s" (show_expr e1) (show_expr e2)); *)
     (e1, e2) => function
     | Term (f, args), _ -> Term (f, args @ [e2])
     | Atom a, Atom b -> Term (a, [e2])
