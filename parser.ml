@@ -55,6 +55,8 @@ let advance = get >>= fun s ->
 
 let consume = advance >> get
 
+let between op ed x = op >> x << ed
+
 let option x p = p <|> return x
 let optional p = option () (p >> return ())
 

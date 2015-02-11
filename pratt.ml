@@ -5,28 +5,30 @@ open Syntax
 open Parser
 
 
-
-let rec parse_loop rbp left =
+let parse_one_nud rbp handler =
     get >>= fun { symbol } ->
-        parse_led symbol rbp left <|> parse_nud symbol rbp left
+        match symbol.nud with
+        | Some nud ->
+            trace (format "nud: + tok = %s" (show_literal symbol.tok.value));
+            advance >> nud >>= fun expr ->
+                trace (format "one: * expr = %s" (show_expr expr));
+                handler expr
+        | None -> trace (format "nud: - tok = %s" (show_literal symbol.tok.value));
+                  nud_error symbol.tok
 
 
-and parse_nud sym rbp left = sym.nud => function
-    | Some nud -> advance >> nud >>= fun x -> parse_loop rbp (append_expr left x)
-    | None -> nud_error sym.tok
+let rec parse_alt rbp left =
+    parse_led rbp left <|> parse_expr rbp
 
+and parse_expr rbp = parse_one_nud rbp (parse_alt rbp)
 
-and parse_led sym rbp left = sym.led => function
-    | Some led -> if sym.lbp > rbp
-                  then advance >> led left >>= parse_loop rbp
+and parse_led rbp left =
+    get >>= fun { symbol } -> symbol.led => function
+    | Some led -> trace (format "led: + tok = %s" (show_literal symbol.tok.value));
+                  if symbol.lbp > rbp
+                  then advance >> led left >>= fun expr ->
+                    (trace (format "led: > expr = %s" (show_expr expr));
+                     parse_alt rbp expr)
                   else return left
-    | None -> led_error sym.tok
-
-
-let parse_expression rbp =
-    get >>= fun { symbol } ->
-        symbol.nud => function
-        | None -> error (format "No nud for token `%s`." (show_token symbol.tok))
-        | Some nud -> advance >> nud >>= parse_loop rbp
-
-
+    | None -> trace (format "led: - tok = %s" (show_literal symbol.tok.value));
+              led_error symbol.tok

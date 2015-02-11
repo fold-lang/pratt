@@ -49,8 +49,8 @@ let create_token value ?loc_opt () =
 
 let tok v = create_token v ()
 
-let end_token   = create_token (Symbol "end")   ()
 let start_token = create_token (Symbol "module") ()
+let end_token   = create_token (Symbol "end")    ()
 
 let show_token tok =
     format "%s @ %s" (show_literal  tok.value)
