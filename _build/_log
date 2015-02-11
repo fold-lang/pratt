@@ -1,0 +1,31 @@
+### Starting build.
+# Target: main.ml.depends, tags: { extension:ml, file:main.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules main.ml > main.ml.depends # cached
+# Target: foundation.ml.depends, tags: { extension:ml, file:foundation.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules foundation.ml > foundation.ml.depends # cached
+# Target: foundation.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:foundation.cmo, file:foundation.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o foundation.cmo foundation.ml # cached
+# Target: lexicon.mll, tags: { extension:mll, file:lexicon.mll, lexer, ocaml, ocamllex, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamllex.opt -q lexicon.mll # cached
+# Target: lexicon.ml.depends, tags: { extension:ml, file:lexicon.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules lexicon.ml > lexicon.ml.depends # cached
+# Target: lexicon.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:lexicon.cmo, file:lexicon.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o lexicon.cmo lexicon.ml # cached
+# Target: parser.ml.depends, tags: { extension:ml, file:parser.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules parser.ml > parser.ml.depends # cached
+# Target: syntax.ml.depends, tags: { extension:ml, file:syntax.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules syntax.ml > syntax.ml.depends # cached
+# Target: syntax.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:syntax.cmo, file:syntax.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o syntax.cmo syntax.ml # cached
+# Target: parser.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:parser.cmo, file:parser.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o parser.cmo parser.ml # cached
+# Target: pratt.ml.depends, tags: { extension:ml, file:pratt.ml, ocaml, ocamldep, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamldep.opt -modules pratt.ml > pratt.ml.depends # cached
+# Target: pratt.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:pratt.cmo, file:pratt.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o pratt.cmo pratt.ml # cached
+# Target: main.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:main.cmo, file:main.ml, implem, ocaml, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt -c -o main.cmo main.ml # cached
+# Target: main.byte, tags: { byte, dont_link_with, extension:byte, file:main.byte, link, ocaml, program, quiet, traverse }
+/Users/rizo/.opam/4.02.1/bin/ocamlc.opt foundation.cmo lexicon.cmo syntax.cmo parser.cmo pratt.cmo main.cmo -o main.byte # cached
+# No parallelism done
+# Compilation successful.
