@@ -5,96 +5,35 @@ open Lexicon
 open Parser
 open Pratt
 
-let infix lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun a -> parse_expr lbp >>=
-                fun b -> return (Term (tok.value, [a; b])));
-    nud = None }
-
-let prefix_parser tok =
-    many (parse_one_nud 0 return) >>= fun expr_list ->
-        return (Term (tok.value, expr_list))
-
-let prefix = fun tok ->
-  { tok = tok;
-    lbp = 0;
-    led = None;
-    nud = Some (prefix_parser tok) }
-
-let postfix lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun x -> return (Term (tok.value, [x])));
-    nud = None }
-
-let atomic = fun tok ->
-  { tok = tok;
-    lbp = 0;
-    led = None;
-    nud = Some (return (Atom tok.value)) }
-
-let parse_literal lit =
-    get >>= fun { symbol } ->
-    if (lit = symbol.tok.value)
-        then advance
-        else error (format "error: expected %s but got %s."
-                     (show_literal lit) (show_literal symbol.tok.value))
-
-let initial = fun tok ->
-  { tok = tok;
-    lbp = 0;
-    led = None;
-    nud = Some (parse_expr 0 <<
-                parse_literal (Symbol ")")) }
-
-let __start__ = fun tok ->
-  { tok = tok;
-    lbp = 0;
-    led = None;
-    nud = Some (many (parse_expr 0) >>= fun xs ->
-                  return (Term (tok.value, xs))) }
-
-let final = fun tok ->
-  { tok = tok;
-    lbp = 0;
-    led = Some return;
-    nud = None }
-
-let __end__ = final
-
-module Symbol_Map = Map.Make(String)
+module Table = Map.Make(String)
 
 let add_symbol name sym =
-    Symbol_Map.add name sym
+    Table.add name sym
 
 let map =
-    Symbol_Map.empty
+    Table.empty
     |> add_symbol "`+" (infix 6)
     |> add_symbol "`*" (infix 7)
     |> add_symbol "`/" (infix 7)
     |> add_symbol "`=" (infix 1)
     |> add_symbol "`-" (infix 6)
-    |> add_symbol "`!" prefix
-    |> add_symbol "`f" prefix
-    |> add_symbol "`g" prefix
-    |> add_symbol "`h" prefix
     |> add_symbol "`++" (postfix 8)
-    |> add_symbol "`(" initial
-    |> add_symbol "`)" final
-    |> add_symbol "(atom)" atomic
-    |> add_symbol "`end" __end__
+    |> add_symbol "`(" (initial 0)
+    |> add_symbol "`)" (final 0)
+    |> add_symbol "`atom" (atomic 9)
+    |> add_symbol "`end" (final 0)
+    |> add_symbol "`module" (block 0)
 
 let grammar map tok =
     let tok_id = show_literal tok.value in
-    let mk_sym = if Symbol_Map.mem tok_id map
-        then Symbol_Map.find tok_id map
-        else Symbol_Map.find "(atom)" map in
+    let mk_sym = if Table.mem tok_id map
+        then Table.find tok_id map
+        else Table.find "`atom" map in
     mk_sym tok
 
 
 let parse ~input ~grammar =
-    let state  = { input; grammar; symbol = __start__ start_token } in
+    let state  = { input; grammar; symbol = grammar start_token } in
     match run (parse_expr 0) state with
     | Ok (value, _) -> value
     | Error msg -> raise (Failure msg)
@@ -117,7 +56,6 @@ let (==) s e =
     else
         print_endline ""
 
-
 let a         = Atom (Symbol "a")
 let b         = Atom (Symbol "b")
 let c         = Atom (Symbol "c")
@@ -127,7 +65,7 @@ let ( ++ ) a  = Term (Symbol "++", [a])
 let ( * ) a b = Term (Symbol "*", [a; b])
 let f b       = Term (Symbol "f", [a])
 let g a b c   = Term (Symbol "g", [a; b; c])
-let h         = Term (Symbol "h", [])
+let h         = Atom (Symbol "h")
 let m xs      = Term (Symbol "module", xs)
 
 let () =
@@ -145,11 +83,14 @@ let () =
     "(a + a)"   == m [a + a];
     "(((a)))"   == m [a];
 
-    ~> "f !a - b + 1";
+    ~> "a b c + a b ++";
+    ~> "f"
+    (* ~> "f g b" *)
 
 
     (* FIXME
-        ~> "f 2 f 3 + 1" *)
-    (* ~> "(a)" *)
+        ~> "f 2 f 3 + 1"
+        ~> "f !a - b) + 1";
+    *)
 
 
