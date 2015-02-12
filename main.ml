@@ -18,7 +18,8 @@ let map =
     |> add_symbol "`=" (infix 1)
     |> add_symbol "`-" (infix 6)
     |> add_symbol "`++" (postfix 8)
-    |> add_symbol "`(" (initial 0)
+    |> add_symbol "`!!" (postfix 8)
+    |> add_symbol "`(" (initial 9)
     |> add_symbol "`)" (final 0)
     |> add_symbol "`atom" (atomic 9)
     |> add_symbol "`end" (final 0)
@@ -69,22 +70,22 @@ let h         = Atom (Symbol "h")
 let m xs      = Term (Symbol "module", xs)
 
 let () =
-    ""          == m [];
-    "a"         == m [a];
-    "!a"        == m [! a];
-    "a++"       == m [(++) a];
-    "a + a"     == m [a + a];
-    "a + a * a" == m [(a + (a * a))];
-    "f a"       == m [f a];
-    "f a + a"   == m [(f a) + a];
-    "f a + f a" == m [(f a) + (f a)];
-    "g a b b"   == m [g a b b];
-    "h"         == m [h];
-    "(a + a)"   == m [a + a];
-    "(((a)))"   == m [a];
+    ""              == m [];
+    "a"             == m [a];
+    "!a"            == m [! a];
+    "a++"           == m [(++) a];
+    "a + a"         == m [a + a];
+    "a + a * a"     == m [(a + (a * a))];
+    "f a"           == m [f a];
+    "f a + a"       == m [(f a) + a];
+    "f a + f a"     == m [(f a) + (f a)];
+    "g a b b"       == m [g a b b];
+    "h"             == m [h];
+    "(a + a)"       == m [a + a];
+    "(((a)))"       == m [a];
+    ~> "g a (b + c) d";
 
-    ~> "a b c + a b ++";
-    ~> "f"
+    ~> "a = f c + f (x)";
     (* ~> "f g b" *)
 
 

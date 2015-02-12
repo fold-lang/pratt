@@ -10,3 +10,6 @@ let rec show_expr = function
     | Term (f, args) -> format "(%s: %s)" (show_literal f) (join " " (map show_expr args))
 
 
+let append_expr e1 e2 =
+	e1 => function | Atom head -> Term (head, [e2])
+				   | Term (head, args) -> Term (head, args @ [e2])

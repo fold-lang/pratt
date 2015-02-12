@@ -29,7 +29,6 @@ and parse_next rbp left =
         match symbol.led with
         | Some led ->
             trace (format "led: + tok = %s" (show_literal symbol.tok.value));
-            trace (format "led: %% symbol.lbp = %d, rbp = %d" symbol.lbp rbp);
             if symbol.lbp > rbp
                 then advance >> led left >>= fun expr ->
                     trace (format "led: > expr = %s" (show_expr expr));
@@ -60,12 +59,10 @@ let postfix lbp = fun tok ->
     nud = None }
 
 let atomic lbp = fun tok ->
-    let atom = (Atom tok.value) in
   { tok = tok;
     lbp = lbp;
-    led = Some (function Atom head -> return (Term (head, [atom]))
-                       | Term (head, args) -> return (Term (head, args @ [atom])));
-    nud = Some (return atom) }
+    led = Some (fun prev -> return (append_expr prev (Atom tok.value)));
+    nud = Some (return (Atom tok.value)) }
 
 let parse_literal lit =
     get >>= fun { symbol } ->
@@ -77,14 +74,16 @@ let parse_literal lit =
 let initial lbp = fun tok ->
   { tok = tok;
     lbp = lbp;
-    led = None;
-    nud = Some (parse_expr lbp <<
+    led = Some (fun prev -> parse_expr 0
+                    >>= (fun e -> return (append_expr prev e))
+                    << parse_literal (Symbol ")"));
+    nud = Some (parse_expr 0 <<
                 parse_literal (Symbol ")")) }
 
 let final lbp = fun tok ->
   { tok = tok;
     lbp = lbp;
-    led = Some return;
+    led = Some (fun e -> print (format "e = %s" (show_expr e)); return e);
     nud = None }
 
 let block lbp = fun tok ->
