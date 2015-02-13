@@ -25,7 +25,7 @@ type location =
     column   : int }
 
 let empty_location =
-	{ filename = "none";
+	{ filename = "REPL";
 	  line     = 0;
 	  column   = 0 }
 
@@ -49,8 +49,9 @@ let create_token value ?loc_opt () =
 
 let tok v = create_token v ()
 
-let start_token = create_token (Symbol "module") ()
-let end_token   = create_token (Symbol "end")    ()
+let start_token   = create_token (Symbol "module")  ()
+let end_token     = create_token (Symbol "EOF")     ()
+let newline_token = create_token (Symbol "EOL") ()
 
 let show_token tok =
     format "%s @ %s" (show_literal  tok.value)
@@ -63,7 +64,7 @@ let blank_char      = [' ' '\009' '\012']
 let identifier_char = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
 let operator_char   = ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<'
                        '=' '>' '?' '@' '^' '|' '~']
-let single_operator_char = ['(' ')' '`']
+let single_operator_char = ['(' ')' '`' ',' ';']
 let decimal_literal = ['0'-'9'] ['0'-'9' '_']*
 let hex_literal     = '0' ['x' 'X'] ['0'-'9' 'A'-'F' 'a'-'f']['0'-'9' 'A'-'F' 'a'-'f' '_']*
 let oct_literal     = '0' ['o' 'O'] ['0'-'7'] ['0'-'7' '_']*
@@ -75,7 +76,7 @@ let float_literal   = ['0'-'9'] ['0'-'9' '_']*
 
 rule read_token = parse
   | newline_char
-      { read_token lexbuf }
+      { newline_token }
   | blank_char +
       { read_token lexbuf }
   | int_literal as x

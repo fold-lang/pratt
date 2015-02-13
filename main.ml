@@ -5,6 +5,24 @@ open Lexicon
 open Parser
 open Pratt
 
+let fold_logo =
+(* "                             |\n"^ *)
+blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
+blue ("    ▐▐     ▗▗   ▐▐    ▗▗▐▐   ") ^ ("|" ^ bright_white "\n") ^
+blue ("  ▝▝▐▐▝▝ ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|" ^ bright_white "  Version 0.0.1-alpha+001 (2015-02-12)\n") ^
+blue ("    ▐▐   ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|  " ^ (underline (bright_white "http://fold-lang.org\n"))) ^
+blue ("    ▐▐     ▝▝    ▝▝   ▝▝     ") ^ ("|" ^ bright_white "  Type ? for help.\n") ^
+blue ("  ▗▐▝                      \n") ^
+      "                           \n"  ^
+ (italic "  \"Simplicity is prerequisite for reliability.\"\n") ^
+      "      — Edsger W. Dijkstra"
+
+let eol_symbol tok =
+  { tok = tok;
+    lbp = 0;
+    led = Some return;
+    nud = Some (parse_expr 0 >>= return) }
+
 module Table = Map.Make(String)
 
 let add_symbol name sym =
@@ -16,13 +34,16 @@ let map =
     |> add_symbol "`*" (infix 7)
     |> add_symbol "`/" (infix 7)
     |> add_symbol "`=" (infix 1)
+    |> add_symbol "`;" (infix 1)
     |> add_symbol "`-" (infix 6)
+    |> add_symbol "`->" (infix 1)
     |> add_symbol "`++" (postfix 8)
     |> add_symbol "`!!" (postfix 8)
     |> add_symbol "`(" (initial 9)
     |> add_symbol "`)" (final 0)
     |> add_symbol "`atom" (atomic 9)
-    |> add_symbol "`end" (final 0)
+    |> add_symbol "`EOF" (final 0)
+    |> add_symbol "`EOL" eol_symbol
     |> add_symbol "`module" (block 0)
 
 let grammar map tok =
@@ -30,11 +51,12 @@ let grammar map tok =
     let mk_sym = if Table.mem tok_id map
         then Table.find tok_id map
         else Table.find "`atom" map in
-    mk_sym tok
+    let sym = mk_sym tok in
+    sym
 
 
 let parse ~input ~grammar =
-    let state  = { input; grammar; symbol = grammar start_token } in
+    let state  = { input; grammar; symbol = grammar (read_token input) } in
     match run (parse_expr 0) state with
     | Ok (value, _) -> value
     | Error msg -> raise (Failure msg)
@@ -57,41 +79,32 @@ let (==) s e =
     else
         print_endline ""
 
-let a         = Atom (Symbol "a")
-let b         = Atom (Symbol "b")
-let c         = Atom (Symbol "c")
-let ( + ) a b = Term (Symbol "+", [a; b])
-let ( ! ) a   = Term (Symbol "!", [a])
-let ( ++ ) a  = Term (Symbol "++", [a])
-let ( * ) a b = Term (Symbol "*", [a; b])
-let f b       = Term (Symbol "f", [a])
-let g a b c   = Term (Symbol "g", [a; b; c])
-let h         = Atom (Symbol "h")
-let m xs      = Term (Symbol "module", xs)
+let rec eval env : expr -> int = function
+    | Atom lit -> begin match lit with
+        | Symbol x -> assert false
+        | String x -> assert false
+        | Float x -> assert false
+        | Integer x -> x
+    end
+    | Term (Symbol "+", [e1; e2]) -> (eval env e1) + (eval env e2)
+    | Term (Symbol "-", [e1; e2]) -> (eval env e1) - (eval env e2)
+    | Term (Symbol "/", [e1; e2]) -> (eval env e1) / (eval env e2)
+    | Term (Symbol "*", [e1; e2]) -> (eval env e1) * (eval env e2)
+    | _ -> assert false
+
+let loop () =
+    while true do try
+        print_string (blue "-> " ^ start_white);
+        flush stdout;
+        let input = Lexing.from_channel stdin in
+        let e = parse ~input ~grammar: (grammar map) in
+        print (green " = " ^ start_white ^ (string_of_int (eval (fun v -> 0) e)))
+    with
+        Failure msg -> print_endline @@ (bright_red " * Error" ^ ": " ^ msg);
+                       flush stdout
+    done
 
 let () =
-    ""              == m [];
-    "a"             == m [a];
-    "!a"            == m [! a];
-    "a++"           == m [(++) a];
-    "a + a"         == m [a + a];
-    "a + a * a"     == m [(a + (a * a))];
-    "f a"           == m [f a];
-    "f a + a"       == m [(f a) + a];
-    "f a + f a"     == m [(f a) + (f a)];
-    "g a b b"       == m [g a b b];
-    "h"             == m [h];
-    "(a + a)"       == m [a + a];
-    "(((a)))"       == m [a];
-    ~> "g a (b + c) d";
-
-    ~> "a = f c + f (x)";
-    (* ~> "f g b" *)
-
-
-    (* FIXME
-        ~> "f 2 f 3 + 1"
-        ~> "f !a - b) + 1";
-    *)
-
+    print (end_color ^ "\n" ^ fold_logo ^ "\n");
+    loop ()
 

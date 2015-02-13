@@ -83,7 +83,7 @@ let initial lbp = fun tok ->
 let final lbp = fun tok ->
   { tok = tok;
     lbp = lbp;
-    led = Some (fun e -> print (format "e = %s" (show_expr e)); return e);
+    led = Some (fun e -> return @@ Atom (Symbol ""));
     nud = None }
 
 let block lbp = fun tok ->
