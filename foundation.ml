@@ -94,6 +94,7 @@ let color_format color =
 
 let blue = color_format `Blue
 let red = color_format `Red
+let yellow = color_format `Yellow
 let magenta = color_format `Magenta
 let cyan = color_format `Cyan
 let white = color_format `White
@@ -115,9 +116,9 @@ let blink x  = "\027[5m" ^ x ^ "\027[0m"
 
 let log x = print ("-- " ^ x)
 
-let debug = false
+let debug = true
 
-let trace x = if debug then print ((cyan "> ") ^ x)
+let trace x = if debug then print ((cyan " > ") ^ x)
                        else ()
 
 let error = failwith

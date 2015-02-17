@@ -76,7 +76,9 @@ let float_literal   = ['0'-'9'] ['0'-'9' '_']*
 
 rule read_token = parse
   | newline_char
-      { newline_token }
+      { Lexing.new_line lexbuf;
+        newline_token
+        (* read_token lexbuf *) }
   | blank_char +
       { read_token lexbuf }
   | int_literal as x
