@@ -47,8 +47,6 @@ let create_token value ?loc_opt () =
         | Some loc -> loc
         | None -> empty_location }
 
-let tok v = create_token v ()
-
 let start_token   = create_token (Symbol "module")  ()
 let end_token     = create_token (Symbol "EOF")     ()
 let newline_token = create_token (Symbol "EOL") ()

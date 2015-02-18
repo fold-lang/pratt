@@ -13,10 +13,24 @@ type state =
 and symbol =
   { tok : token;
     lbp : int;
-    led : (expr -> (expr, state) parser) option;
-    nud : (expr, state) parser option }
+    led : expr -> (expr, state) parser;
+    nud : (expr, state) parser }
 
-let symbol ?(lbp = 0) ?led ?nud tok =
+(* -- Error Handling -- *)
+
+let led_error = fun left ->
+    get >>= fun { symbol } ->
+        error (format "%s: %s cannot be used in infix position."
+                      (show_location symbol.tok.location)
+                      (show_literal symbol.tok.value))
+
+let nud_error =
+    get >>= fun { symbol } ->
+        error (format "%s: %s cannot be used in prefix position."
+                      (show_location symbol.tok.location)
+                      (show_literal symbol.tok.value))
+
+let symbol ?(lbp = 0) ?(led = led_error) ?(nud = nud_error) tok =
   { tok = tok;
     lbp = lbp;
     led = led;
@@ -71,77 +85,42 @@ let block p =
   laidout (many (align >> p))
 
 
-(* -- Error Handling -- *)
-
-let led_error t =
-    error (format "%s: symbol %s takes no arguments."
-            (show_location t.location) (show_literal t.value))
-
-let nud_error t =
-    error (format "%s: symbol %s requires a left argument."
-            (show_location t.location) (show_literal t.value))
-
-let rec parse_alt rbp left =
+let rec parse_next rbp left =
     get >>= fun { symbol } ->
-        trace (format "alt: (%s.lbp = %d, rbp = %d, left = %s)"
-                      (show_literal symbol.tok.value) symbol.lbp rbp (show_expr left));
+        trace (format "led: %s.lbp = %d, rbp = %d"
+                      (show_literal symbol.tok.value) symbol.lbp rbp);
         if symbol.lbp > rbp
-            then parse_next rbp left <|> parse_expr 0
-            else (trace "alt: !"; return left)
+            then advance >> symbol.led left >>= fun next ->
+                trace (format "led: * next = %s" (show_expr next));
+                parse_next rbp next
+            else (trace (format "led: ! (left = %s)" (show_expr left));
+                  return left)
 
-and parse_expr rbp =
+let parse_expr rbp =
     get >>= fun { symbol } ->
-        match symbol.nud with
-        | Some nud ->
-            trace (format "nud: + tok = %s" (show_literal symbol.tok.value));
-            advance >> nud >>= fun expr ->
-                trace (format "nud: * expr = %s" (show_expr expr));
-                parse_alt rbp expr
-        | None ->
-            trace (format "nud: - tok = %s" (show_literal symbol.tok.value));
-            nud_error symbol.tok
+        advance >> symbol.nud >>= fun left ->
+            trace (format "nud: * left = %s" (show_expr left));
+            parse_next rbp left
 
-and parse_next rbp left =
-    get >>= fun { symbol } ->
-        match symbol.led with
-        | Some led ->
-            trace (format "led: + tok = %s" (show_literal symbol.tok.value));
-            advance >> led left >>= fun expr ->
-                trace (format "led: * expr = %s" (show_expr expr));
-                parse_alt rbp expr
-        | None ->
-            trace (format "led: - tok = %s" (show_literal symbol.tok.value));
-            led_error symbol.tok
+let infix lbp tok = symbol tok
+    ~lbp: lbp
+    ~led: (fun x -> parse_expr lbp >>=
+           fun y -> return (Term (tok.value, [x; y])))
 
+let postfix lbp tok = symbol tok
+    ~lbp: lbp
+    ~led: (fun x -> return (Term (tok.value, [x])))
 
-let infix lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun a -> parse_expr lbp >>=
-                fun b -> return (Term (tok.value, [a; b])));
-    nud = None }
-
-let postfix lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun x -> return (Term (tok.value, [x])));
-    nud = None }
-
-let atomic_led_parser tok = function
-    | Term (head, args) ->
-        get >>= fun s ->
-            trace (format "atomic(%s): s.level = %d, current_level = %d"
-                          (show_literal tok.value) s.level (current_column s.input));
-            put s
-            >> return (Term (head, args @ [Atom tok.value]))
-    | Atom x ->
-        error "Atomic expression cannot be applied."
-
-let atomic lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (atomic_led_parser tok);
-    nud = Some (return (Atom tok.value)) }
+let atomic lbp tok = symbol tok
+    ~lbp: lbp
+    ~led: (function
+           | Term (head, args) -> get >>= fun s ->
+                trace (format "atomic(%s): s.level = %d, current_level = %d"
+                              (show_literal tok.value) s.level
+                              (current_column s.input));
+                put s >> return (Term (head, args @ [Atom tok.value]))
+           | Atom x -> error "Atomic expression cannot be applied.")
+    ~nud: (return (Atom tok.value))
 
 let parse_literal lit =
     get >>= fun { symbol } ->
@@ -150,20 +129,15 @@ let parse_literal lit =
         else error (format "error: expected %s but got %s."
                      (show_literal lit) (show_literal symbol.tok.value))
 
-let initial lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun prev -> parse_expr 0
-                    >>= (fun e -> return (append_expr prev e))
-                    << parse_literal (Symbol ")"));
-    nud = Some (parse_expr 0 <<
-                parse_literal (Symbol ")")) }
+let initial lbp tok = symbol tok
+    ~lbp: lbp
+    ~led: (fun x -> parse_expr 0 >>=
+           fun y -> return (append_expr x y) << parse_literal (Symbol ")"))
+    ~nud: (parse_expr 0 << parse_literal (Symbol ")"))
 
-let final lbp = fun tok ->
-  { tok = tok;
-    lbp = lbp;
-    led = Some (fun e -> return @@ Atom (Symbol ""));
-    nud = None }
+let final lbp tok = symbol tok
+    ~lbp: lbp
+    ~led: (fun x -> return (Atom (Symbol "wat?")))
 
 let parse ~input ~grammar ?start () =
     let t0 = match start with
@@ -174,5 +148,6 @@ let parse ~input ~grammar ?start () =
                    symbol = grammar t0 } in
     match run (parse_expr 0) state with
     | Ok (value, _) -> value
+    | Error "Empty input" -> epsilon
     | Error msg -> raise (Failure msg)
 

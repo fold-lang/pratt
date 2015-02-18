@@ -31,10 +31,11 @@ let z       = Atom (Symbol "z")
 let m xs    = Term (Symbol "module", xs)
 
 let run () =
-  ""             == epsilon;
+  (* ""             == epsilon; *)
   "5"            == Atom (Integer 5);
 
-  ~> "a = 5\n\t6\n\t9\n\t8\n\t2"
+  ~> "a = 5"
+  (* ~> "a = 5\n\t6\n\t9\n\t8\n\t2" *)
 
   (* "f x\n\t\ty"   == m [Term (Symbol "f", [x; y])]; *)
   (* "f x\ny"       == m [Term (Symbol "f", [x]); y] *)

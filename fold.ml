@@ -13,14 +13,15 @@ let add_symbol name sym =
 let eol_symbol tok = symbol tok
     ~lbp: 1
     ~led: (fun left -> return left)
-    ~nud: (return epsilon)
 
 let eof_symbol tok = symbol tok
-    ~nud: (return epsilon)
+    ~lbp: 0
+    ~led: return
 
-let block_symbol tok = symbol tok
+let define_symbol tok = symbol tok
     ~lbp: 1
-    ~led: (fun e -> block (parse_expr 0) >>= fun expr_list ->
+    ~led: (fun left ->
+        many (parse_expr 0) >>= fun expr_list ->
              return (Term (tok.value, expr_list)))
 
 
@@ -30,9 +31,9 @@ let map =
     |> add_symbol "`>" (infix 6)
     |> add_symbol "`<" (infix 6)
     |> add_symbol "`*" (infix 7)
-    |> add_symbol "`/" (infix 7)
+    |> add_symbol "`/" (infix 7) *)
     |> add_symbol "`=" (infix 1)
-    |> add_symbol "`;" (infix 1)
+    (*|> add_symbol "`;" (infix 1)
     |> add_symbol "`-" (infix 6)
     |> add_symbol "`->" (infix 1)
     |> add_symbol "`++" (postfix 8)
@@ -43,8 +44,7 @@ let map =
     |> add_symbol "`:" block_symbol *)
     |> add_symbol "`atom" (atomic 9)
     |> add_symbol "`EOF" eof_symbol
-    |> add_symbol "`EOL" eol_symbol
-    |> add_symbol "`=" block_symbol
+    (* |> add_symbol "`EOL" eol_symbol *)
 
 
 let grammar map tok =

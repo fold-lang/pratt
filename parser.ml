@@ -10,7 +10,7 @@ let get       = fun s -> Ok (s, s)
 let put s     = fun _ -> Ok ((), s)
 let zero      = fun s -> Ok ((), s)
 
-let error msg = trace msg; fun _ -> Error msg
+let error msg = warn msg; fun _ -> Error msg
 
 let return x  = fun s -> Ok (x, s)
 

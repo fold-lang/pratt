@@ -118,8 +118,13 @@ let log x = print ("-- " ^ x)
 
 let debug = true
 
-let trace x = if debug then print ((cyan " > ") ^ x)
-                       else ()
+let trace x =
+  if debug then print ((cyan " > ") ^ x)
+           else ()
+
+let warn x =
+  if debug then print ((yellow " ! ") ^ x)
+           else ()
 
 let error = failwith
 
