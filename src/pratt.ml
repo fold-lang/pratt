@@ -54,6 +54,15 @@ let with_indent l p =
         put { s with level = curr } >>
     return e
 
+let indent =
+  get >>= fun s ->
+    put { s with level = s.level + 1 }
+
+let unindent =
+  get >>= fun s ->
+    put { s with level = s.level - 1 }
+
+(*
 let current_column lexbuf =
   0
 
@@ -74,7 +83,7 @@ let indented = indent_cmp (>)
 let align    = indent_cmp (=)
 
 let block p =
-  laidout (many (align >> p))
+  laidout (many (align >> p)) *)
 
 
 let rec parse_next rbp left =
@@ -108,19 +117,17 @@ let postfix lbp tok = symbol tok
 
 let atomic lbp tok = symbol tok
     ~lbp: lbp
-    ~led: (function
-           | Term (head, args) as expr -> get >>= fun s ->
-                trace (format "atomic(%s): s.level = %d, pos = (%d, %d, %d, %d)"
-                              (show_literal tok.value) s.level
-                              (Sedlexing.lexeme_start s.lexer.lexbuf)
-                              (Sedlexing.lexeme_end s.lexer.lexbuf)
-                              (Sedlexing.lexeme_length s.lexer.lexbuf)
-                              s.lexer.line_count);
-                if (current_column s.lexer) > s.level
-                    then return (Term (head, args @ [Atom tok.value]))
-                    else return (Term (Symbol "seq", [expr; Atom tok.value]))
-           | Atom x as expr -> return (Term (Symbol "seq", [expr; Atom tok.value])))
-           (* | Atom x -> error "Atomic expression cannot be applied.") *)
+    ~led: (fun left ->
+              let expr = match left with
+              | Term (head, args) -> (Term (head, args @ [Atom tok.value]))
+              | Atom x -> (Term (Symbol "seq", [left; Atom tok.value])) in
+              get >>= fun s ->
+                trace (format "term: token = %s, level = %d" (show_token tok) s.level);
+                if tok.location.column > s.level
+                then indent >> return expr
+                else if tok.location.column < s.level
+                     then unindent >> return expr
+                     else return expr)
     ~nud: (return (Atom tok.value))
 
 let parse_literal lit =
@@ -144,10 +151,9 @@ let parse ~lexer ~grammar ?start () =
     let t0 = match start with
             | None -> (read_token lexer)
             | Some t -> t in
-    trace (format "l0 = %d, t0 = %s" 0 (show_literal t0.value));
     let s0 = { lexer;
                grammar;
-               level = 0;
+               level = 1;
                symbol = grammar t0 } in
     match run (parse_expr 0) s0 with
     | Ok (value, _) -> value

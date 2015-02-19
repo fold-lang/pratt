@@ -19,17 +19,17 @@ let show_literal = function
 (* -- Location -- *)
 
 type location =
-  { filename : string;
-    line     : int;
-    column   : int }
+  { line     : int;
+    column   : int;
+    length   : int }
 
 let empty_location =
-    { filename = "";
-      line     = 0;
-      column   = 0 }
+    { line     = 0;
+      column   = 0;
+      length   = 0 }
 
 let show_location x =
-    format "%s:%d:%d" x.filename x.line x.column
+    format "%d:%d" x.line x.column
 
 (* -- Token -- *)
 
@@ -39,11 +39,9 @@ type token =
     { value    : literal;
       location : location }
 
-let create_token value ?loc_opt () =
+let create_token value ?(loc = empty_location) () =
     { value = value;
-      location = loc_opt => function
-        | Some loc -> loc
-        | None -> empty_location }
+      location = loc }
 
 let start_token   = create_token (Symbol "module")  ()
 let end_token     = create_token (Symbol "EOF")     ()
@@ -74,32 +72,56 @@ let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./:<=>?@^|~" ]
 let delimeter_char  = [%sedlex.regexp? Chars "()`,;\"'"]
 
 type lexer =
-  { lexbuf     : Sedlexing.lexbuf;
-    line_start : int;
-    line_count : int }
+  { filename           : string;
+    lexbuf             : Sedlexing.lexbuf;
+    mutable line_start : int;
+    mutable line_count : int }
 
 let increment_line lexer =
-  { lexer with line_start = Sedlexing.lexeme_end lexer.lexbuf;
-               line_count = lexer.line_count + 1 }
+  lexer.line_start <- Sedlexing.lexeme_end lexer.lexbuf;
+  lexer.line_count <- lexer.line_count + 1;
+  lexer
 
-let rec read_token ({ lexbuf } as lexer) = match%sedlex lexbuf with
+let current_token_column lexer =
+  Sedlexing.lexeme_end lexer.lexbuf -
+    lexer.line_start - Sedlexing.lexeme_length lexer.lexbuf + 1
+
+let () = print "immutable"
+
+let rec read_token ({ lexbuf } as lexer) =
+    match%sedlex lexbuf with
     | '\n'       -> read_token (increment_line lexer)
     | '\t' | ' ' -> read_token lexer
     | int_literal ->
         begin try
-          create_token (Integer (int_of_string (Sedlexing.Utf8.lexeme lexbuf))) ()
+          create_token (Integer (int_of_string (Sedlexing.Utf8.lexeme lexbuf)))
+            ~loc: { line   = lexer.line_count;
+                    column = current_token_column lexer;
+                    length = Sedlexing.lexeme_length lexbuf } ()
         with Failure _ ->
           raise (Failure (format "Int literal overflow: %d, %d"
                                  (fst (Sedlexing.loc lexbuf))
                                  (snd (Sedlexing.loc lexbuf))))
         end
     | float_literal ->
-        create_token (Float (float_of_string (Sedlexing.Utf8.lexeme lexbuf))) ()
+        create_token (Float (float_of_string (Sedlexing.Utf8.lexeme lexbuf)))
+          ~loc: { line   = lexer.line_count;
+                  column = current_token_column lexer;
+                  length = Sedlexing.lexeme_length lexbuf } ()
     | Plus identifier_char | delimeter_char ->
-        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf)) ()
+        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
+          ~loc: { line   = lexer.line_count;
+                  column = current_token_column lexer;
+                  length = Sedlexing.lexeme_length lexbuf } ()
     | Plus operator_char ->
-        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf)) ()
-    | eof -> end_token
+        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
+          ~loc: { line   = lexer.line_count;
+                  column = current_token_column lexer;
+                  length = Sedlexing.lexeme_length lexbuf } ()
+    | eof -> create_token (Symbol "EOF")
+                 ~loc: { line   = lexer.line_count;
+                         column = current_token_column lexer;
+                         length = Sedlexing.lexeme_length lexbuf } ()
     | any ->
         raise (Failure (format "%d: %d: Illegal_character: %s"
                                  (fst (Sedlexing.loc lexbuf))
@@ -107,13 +129,15 @@ let rec read_token ({ lexbuf } as lexer) = match%sedlex lexbuf with
                                  (Sedlexing.Utf8.lexeme lexbuf)))
     | _ -> assert false (* https://github.com/alainfrisch/sedlex/issues/16 *)
 
-let lexer_with_string str =
-  { lexbuf = Sedlexing.Utf8.from_string str;
+let lexer_with_string name str =
+  { filename = name;
+    lexbuf = Sedlexing.Utf8.from_string str;
     line_start = 0;
     line_count = 1 }
 
-let lexer_with_channel chn =
-  { lexbuf = Sedlexing.Utf8.from_channel chn;
+let lexer_with_channel name chn =
+  { filename = name;
+    lexbuf = Sedlexing.Utf8.from_channel chn;
     line_start = 0;
     line_count = 1 }
 

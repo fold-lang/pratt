@@ -7,13 +7,13 @@ open Fold
 
 
 let (~>) s =
-    let r = parse ~lexer: (lexer_with_string s)
+    let r = parse ~lexer: (lexer_with_string "<TEST>" s)
                 ~grammar: (grammar map) () in
     print ((bright_blue "-> ") ^ s);
     print (" = " ^ show_expr r)
 
 let (==) s e =
-    let r = parse ~lexer: (lexer_with_string s)
+    let r = parse ~lexer: (lexer_with_string "<TEST>" s)
                 ~grammar: (grammar map) () in
     let y = r = e in
     let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
@@ -32,6 +32,7 @@ let add x y     = Term (Symbol "+", [x; y])
 let mul x y     = Term (Symbol "*", [x; y])
 let seq x y     = Term (Symbol ";", [x; y])
 let f x y       = Term (Symbol "f", [x; y])
+let g x         = Term (Symbol "g", [x])
 let def x y     = Term (Symbol "=", [x; y])
 
 let run () =
@@ -42,11 +43,14 @@ let run () =
   "x; y; z"       == (seq (seq x y) z);
   "x = y; z"      == (def x (seq y z));
 
-  "f x\n"         == (f x y);
+  "g x\n\n"         == (g x);
 
-  ~> "print msg"
+  ~> "g x\n\na";
 
-  (* ~> "a = 5\n\t6\n\t9\n\t8\n\t2" *)
+  ~> "print msg";
+
+  (* ~> "a = 5\n\t6\n\t9\n\t8\n\t2\n100 + 100" *)
+  (* TODO: Now the parser must recursivly parse the inner level. with_indent. *)
 
   (* "f x\n\t\ty"   == m [Term (Symbol "f", [x; y])]; *)
   (* "f x\ny"       == m [Term (Symbol "f", [x]); y] *)

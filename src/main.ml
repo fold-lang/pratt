@@ -38,7 +38,7 @@ let loop () =
     while true do try
         print_string (bright_blue "-> " ^ start_white);
         flush stdout;
-        let lexer = lexer_with_channel stdin in
+        let lexer = lexer_with_channel "<REPL>" stdin in
         let e = parse ~lexer ~grammar: (grammar map) () in
         print (green " = " ^ start_white ^ (show_expr e))
     with

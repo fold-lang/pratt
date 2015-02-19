@@ -35,6 +35,7 @@ let map =
     |> add_symbol "`++" (postfix 8)
     |> add_symbol "`!" prefix
     |> add_symbol "`f" prefix
+    |> add_symbol "`g" prefix
     (*|> add_symbol "`;" (infix 1)
     |> add_symbol "`->" (infix 1)
     |> add_symbol "`!!" (postfix 8)
