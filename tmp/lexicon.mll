@@ -62,7 +62,7 @@ let blank_char      = [' ' '\009' '\012']
 let identifier_char = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
 let operator_char   = ['!' '$' '%' '&' '*' '+' '-' '.' '/' ':' '<'
                        '=' '>' '?' '@' '^' '|' '~']
-let single_operator_char = ['(' ')' '`' ',' ';']
+let single_operator_char = ['(' ')' '`' ',' ';' '"' '\'']
 let decimal_literal = ['0'-'9'] ['0'-'9' '_']*
 let hex_literal     = '0' ['x' 'X'] ['0'-'9' 'A'-'F' 'a'-'f']['0'-'9' 'A'-'F' 'a'-'f' '_']*
 let oct_literal     = '0' ['o' 'O'] ['0'-'7'] ['0'-'7' '_']*
@@ -75,8 +75,8 @@ let float_literal   = ['0'-'9'] ['0'-'9' '_']*
 rule read_token = parse
   | newline_char
       { Lexing.new_line lexbuf;
-        newline_token
-        (* read_token lexbuf *) }
+        (* newline_token *)
+        read_token lexbuf }
   | blank_char +
       { read_token lexbuf }
   | int_literal as x

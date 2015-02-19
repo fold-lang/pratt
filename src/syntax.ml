@@ -1,6 +1,6 @@
 
 open Foundation
-open Lexicon
+open Lexer
 
 type expr = Atom of literal
           | Term of literal * expr list

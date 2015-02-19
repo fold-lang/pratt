@@ -1,11 +1,11 @@
 
 open Foundation
-open Lexicon
+open Lexer
 open Syntax
 open Parser
 
 type state =
-  { input   : token_stream;
+  { lexer   : lexer;
     grammar : token -> symbol;
     level   : int;
     symbol  : symbol }
@@ -37,7 +37,7 @@ let symbol ?(lbp = 0) ?(led = led_error) ?(nud = nud_error) tok =
     nud = nud }
 
 let advance = get >>= fun s ->
-    let token  = read_token s.input in
+    let token  = read_token s.lexer in
     let symbol = s.grammar token in
     put { s with symbol = symbol }
 
@@ -55,24 +55,16 @@ let with_indent l p =
     return e
 
 let current_column lexbuf =
-  Lexing.(lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
-
-let current_column lexbuf =
-  Lexing.(lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol)
-
-let show_pos lexbuf =
-  Lexing.(format "%s:%d:%d" lexbuf.lex_curr_p.pos_fname
-                 lexbuf.lex_curr_p.pos_lnum
-                 (lexbuf.lex_curr_p.pos_cnum - lexbuf.lex_curr_p.pos_bol))
+  0
 
 let laidout p =
     get >>= fun s ->
-      with_indent (current_column s.input) p
+      with_indent (current_column s.lexer) p
 
 let indent_cmp cmp =
   get >>= fun s ->
     let curr = s.level in
-    let next = current_column s.input in
+    let next = current_column s.lexer in
     if (cmp curr next)
       then zero
       else error (format "Indentation does not match: curr = %d, next = %d"
@@ -107,6 +99,9 @@ let infix lbp tok = symbol tok
     ~led: (fun x -> parse_expr lbp >>=
            fun y -> return (Term (tok.value, [x; y])))
 
+let prefix tok = symbol tok
+    ~nud: (return (Term (tok.value, [])))
+
 let postfix lbp tok = symbol tok
     ~lbp: lbp
     ~led: (fun x -> return (Term (tok.value, [x])))
@@ -114,12 +109,18 @@ let postfix lbp tok = symbol tok
 let atomic lbp tok = symbol tok
     ~lbp: lbp
     ~led: (function
-           | Term (head, args) -> get >>= fun s ->
-                trace (format "atomic(%s): s.level = %d, current_level = %d"
+           | Term (head, args) as expr -> get >>= fun s ->
+                trace (format "atomic(%s): s.level = %d, pos = (%d, %d, %d, %d)"
                               (show_literal tok.value) s.level
-                              (current_column s.input));
-                put s >> return (Term (head, args @ [Atom tok.value]))
-           | Atom x -> error "Atomic expression cannot be applied.")
+                              (Sedlexing.lexeme_start s.lexer.lexbuf)
+                              (Sedlexing.lexeme_end s.lexer.lexbuf)
+                              (Sedlexing.lexeme_length s.lexer.lexbuf)
+                              s.lexer.line_count);
+                if (current_column s.lexer) > s.level
+                    then return (Term (head, args @ [Atom tok.value]))
+                    else return (Term (Symbol "seq", [expr; Atom tok.value]))
+           | Atom x as expr -> return (Term (Symbol "seq", [expr; Atom tok.value])))
+           (* | Atom x -> error "Atomic expression cannot be applied.") *)
     ~nud: (return (Atom tok.value))
 
 let parse_literal lit =
@@ -139,15 +140,19 @@ let final lbp tok = symbol tok
     ~lbp: lbp
     ~led: (fun x -> return (Atom (Symbol "wat?")))
 
-let parse ~input ~grammar ?start () =
+let parse ~lexer ~grammar ?start () =
     let t0 = match start with
-            | None -> (read_token input)
+            | None -> (read_token lexer)
             | Some t -> t in
-    let state  = { input; grammar;
-                   level = (current_column input) + 1;
-                   symbol = grammar t0 } in
-    match run (parse_expr 0) state with
+    trace (format "l0 = %d, t0 = %s" 0 (show_literal t0.value));
+    let s0 = { lexer;
+               grammar;
+               level = 0;
+               symbol = grammar t0 } in
+    match run (parse_expr 0) s0 with
     | Ok (value, _) -> value
-    | Error "Empty input" -> epsilon
     | Error msg -> raise (Failure msg)
 
+let ignore tok = symbol tok
+    ~nud: (parse_expr 0)
+    ~led: (parse_next 0)

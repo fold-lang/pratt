@@ -1,7 +1,7 @@
 
 open Foundation
 open Syntax
-open Lexicon
+open Lexer
 open Parser
 open Pratt
 open Fold
@@ -38,10 +38,9 @@ let loop () =
     while true do try
         print_string (bright_blue "-> " ^ start_white);
         flush stdout;
-        let input = Lexing.from_channel stdin in
-        let e = parse ~input ~grammar: (grammar map) () in
+        let lexer = lexer_with_channel stdin in
+        let e = parse ~lexer ~grammar: (grammar map) () in
         print (green " = " ^ start_white ^ (show_expr e))
-        (* print (green " = " ^ start_white ^ (string_of_int (eval (fun v -> 0) e))) *)
     with
         Failure msg -> print_endline @@ (bright_red " * Error" ^ ": " ^ msg);
                        flush stdout
@@ -50,6 +49,5 @@ let loop () =
 let () =
     print (end_color ^ "\n" ^ fold_logo ^ "\n");
     Tests.run ();
-    Test_parser.run ();
     loop ()
 

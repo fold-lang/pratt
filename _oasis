@@ -1,0 +1,14 @@
+OASISFormat: 0.4
+Name:        fold
+Version:     0.0.1
+Synopsis:    A modern functional pragmatic language.
+Authors:     Rizo Isrof
+License:     MIT
+BuildTools:  ocamlbuild
+Plugins: META (0.4), DevFiles (0.4)
+
+Executable fold
+  Path:             src/
+  MainIs:           main.ml
+  BuildDepends: 	sedlex
+

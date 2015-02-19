@@ -50,14 +50,38 @@ Which is translated as a sequence of `[<expr>, <EOL>, <TAB>, <expr>]`.
          (seq : (print : (+ : 2 2))
               (+ : 2 (* : 2 3))))
 
-- Notes:
-    - The sequence is created each time two sequences are found where the indenta relation is:
-        - indent(e1) = indent(e2)
-        - indent(e1) > indent(e2)
-    - But not when the relation is:
-        - indent(e1) < indent(e2)
+    ----
+
+    a =
+        3;
+        2;
+        2 + 1
+
+    a = 5
+        3
+
+    a = 5;
+        3
+
+    -> a = 5; 3
+     | (a = 5); 3       ✗
+     |  a = (5; 3)      ✓
+     ?
+
+
+### Notes:
+
+- Criterion: current indentation level.
+
+- The sequence is created each time two sequences are found where the indent relation is:
+    - indent(e1) = indent(e2)
+    - indent(e1) > indent(e2)
+- But not when the relation is:
+    - indent(e1) < indent(e2)
 
 - For infix parser the next expression must be indented or be in the same line.
+- All tokens on the same line have the same indentation level.
+- All tokens on the same line have the indentation level equal to the
 
 
 
