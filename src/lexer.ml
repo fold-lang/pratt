@@ -89,8 +89,17 @@ let current_token_column lexer =
 let () = print "immutable"
 
 let rec read_token ({ lexbuf } as lexer) =
+    let should_read_newline = lexer.filename = "<REPL>" in
     match%sedlex lexbuf with
-    | '\n'       -> read_token (increment_line lexer)
+    | '\n' ->
+        if should_read_newline
+          then begin
+            create_token (Symbol "EOL")
+              ~loc: { line   = lexer.line_count;
+                      column = current_token_column lexer;
+                      length = Sedlexing.lexeme_length lexbuf } ()
+          end
+          else read_token (increment_line lexer)
     | '\t' | ' ' -> read_token lexer
     | int_literal ->
         begin try

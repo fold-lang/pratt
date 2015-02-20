@@ -18,12 +18,12 @@ let (==) s e =
     let y = r = e in
     let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
     print_endline (format "%s %s %s" (bright_blue "->") (bright_white s) i);
-    print_endline (format " = %s %s %s" (show_expr r) "::" (red "Expression"));
+    print_endline (format " = %s %s %s" (show_expr r) "::" (red "Expr"));
     if not y then
         (print_endline (format "\n  Expected: %s" (show_expr e));
        print_endline (format "    Actual: %s\n" (show_expr r)))
     else
-        print_endline ""
+        ()
 
 let x           = Atom (Symbol "x")
 let y           = Atom (Symbol "y")
@@ -40,6 +40,7 @@ let run () =
   "x + y * z"     == (add x (mul y z));
   "f x y"         == (f x y);
   "x; y; z"       == (seq [x; seq [y; z]]);
+  "x + y; z"      == (seq [(add x y); z]);
   "x\ny\nz"       == (seq [x; seq [y; z]]);
   "x = y; z"      == (def x (seq [y; z]));
   "f x\n  y"      == Term (Symbol "f", [x; y]);
