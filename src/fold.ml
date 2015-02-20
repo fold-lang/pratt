@@ -31,7 +31,7 @@ let map =
     |> add_symbol "`*" (infix 7)
     |> add_symbol "`/" (infix 7)
     |> add_symbol "`=" (infix 1)
-    |> add_symbol "`;" (infix 9)
+    |> add_symbol "`;" (infix_r 9)
     |> add_symbol "`++" (postfix 8)
     |> add_symbol "`!" prefix
     |> add_symbol "`f" prefix

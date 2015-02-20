@@ -170,5 +170,10 @@ module Lazy_stream = struct
 end
 
 
+let (<~>) x y = match compare x y with
+  |  0 -> `EQ
+  |  1 -> `GT
+  | -1 -> `LT
+  |  _ -> raise (Failure "Impossible comparison result.")
 
 

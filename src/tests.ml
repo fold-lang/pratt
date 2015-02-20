@@ -30,7 +30,6 @@ let y           = Atom (Symbol "y")
 let z           = Atom (Symbol "z")
 let add x y     = Term (Symbol "+", [x; y])
 let mul x y     = Term (Symbol "*", [x; y])
-let seq x y     = Term (Symbol ";", [x; y])
 let f x y       = Term (Symbol "f", [x; y])
 let g x         = Term (Symbol "g", [x])
 let def x y     = Term (Symbol "=", [x; y])
@@ -40,21 +39,12 @@ let run () =
   "x + y"         == (add x y);
   "x + y * z"     == (add x (mul y z));
   "f x y"         == (f x y);
-  "x; y; z"       == (seq (seq x y) z);
-  "x = y; z"      == (def x (seq y z));
+  "x; y; z"       == (seq [x; seq [y; z]]);
+  "x\ny\nz"       == (seq [x; seq [y; z]]);
+  "x = y; z"      == (def x (seq [y; z]));
+  "f x\n  y"      == Term (Symbol "f", [x; y]);
+  "f x\ny"        == seq [Term (Symbol "f", [x]); y];
+  "f x\n\ty"      == Term (Symbol "f", [x; y]);
+  "f x y\n\tz"    == Term (Symbol "f", [x; y; z])
 
-  "g x\n\n"         == (g x);
-
-  ~> "g x\n\na";
-
-  ~> "print msg";
-
-  (* ~> "a = 5\n\t6\n\t9\n\t8\n\t2\n100 + 100" *)
-  (* TODO: Now the parser must recursivly parse the inner level. with_indent. *)
-
-  (* "f x\n\t\ty"   == m [Term (Symbol "f", [x; y])]; *)
-  (* "f x\ny"       == m [Term (Symbol "f", [x]); y] *)
-  (* "f x\n\ty"     == m [Term (Symbol "f", [x; y])] *)
-  (* "(x + y) z"    == Term (Symbol "+", [x; y; z]); *)
-  (* ("f x y\n\tz") == Term (Symbol "f", [x; y; z]); *)
 
