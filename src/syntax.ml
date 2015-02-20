@@ -9,7 +9,7 @@ let epsilon = Atom (Symbol "")
 
 let rec show_expr = function
     | Atom x -> show_literal x
-    | Term (f, args) -> format "(%s: %s)" (show_literal f) (join " " (map show_expr args))
+    | Term (f, args) -> format "(%s : %s)" (show_literal f) (join " " (map show_expr args))
 
 
 let append_expr e1 e2 =

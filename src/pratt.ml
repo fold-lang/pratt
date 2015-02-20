@@ -102,8 +102,8 @@ let parse_expr rbp =
 
 let infix lbp tok = symbol tok
     ~lbp: lbp
-    ~led: (fun x -> parse_expr lbp >>=
-           fun y -> return (Term (tok.value, [x; y])))
+    ~led: (fun left  -> parse_expr lbp >>=
+           fun right -> return (Term (tok.value, [left; right])))
 
 let infix_r lbp tok = symbol tok
     ~lbp: lbp

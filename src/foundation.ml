@@ -116,7 +116,7 @@ let blink x  = "\027[5m" ^ x ^ "\027[0m"
 
 let log x = print ("-- " ^ x)
 
-let debug = false
+let debug = true
 
 let trace x =
   if debug then print ((cyan " > ") ^ x)

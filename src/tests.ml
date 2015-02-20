@@ -42,10 +42,11 @@ let run () =
   "x; y; z"       == (seq [x; seq [y; z]]);
   "x + y; z"      == (seq [(add x y); z]);
   "x\ny\nz"       == (seq [x; seq [y; z]]);
-  "x = y; z"      == (def x (seq [y; z]));
+  "x = y; z"      == (seq [(def x y); z]);
   "f x\n  y"      == Term (Symbol "f", [x; y]);
   "f x\ny"        == seq [Term (Symbol "f", [x]); y];
   "f x\n\ty"      == Term (Symbol "f", [x; y]);
-  "f x y\n\tz"    == Term (Symbol "f", [x; y; z])
+  "f x y\n\tz"    == Term (Symbol "f", [x; y; z]);
+
 
 

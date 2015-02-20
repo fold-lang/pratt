@@ -31,7 +31,7 @@ let map =
     |> add_symbol "`*" (infix 7)
     |> add_symbol "`/" (infix 7)
     |> add_symbol "`=" (infix 1)
-    |> add_symbol "`;" (infix_r 2)
+    |> add_symbol "`;" (infix_r 1)
     |> add_symbol "`++" (postfix 8)
     |> add_symbol "`!" prefix
     |> add_symbol "`f" prefix
@@ -44,7 +44,7 @@ let map =
     |> add_symbol "`)" (final 0)
     |> add_symbol "`:" block_symbol *)
     |> add_symbol "`print" prefix
-    |> add_symbol "`atom" (atomic 9)
+    |> add_symbol "`atom" (atomic 1)
     |> add_symbol "`EOF" eof_symbol
     |> add_symbol "`EOL" eof_symbol (* for the REPL *)
 
