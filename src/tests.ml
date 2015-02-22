@@ -25,6 +25,10 @@ let (==) s e =
     else
         ()
 
+let sym x = Atom (Symbol x)
+let str x = Atom (String x)
+let term head args = Term (Symbol head, args)
+
 let x           = Atom (Symbol "x")
 let y           = Atom (Symbol "y")
 let z           = Atom (Symbol "z")
@@ -35,18 +39,23 @@ let g x         = Term (Symbol "g", [x])
 let def x y     = Term (Symbol "=", [x; y])
 
 let run () =
-  "5"             == Atom (Integer 5);
-  "x + y"         == (add x y);
-  "x + y * z"     == (add x (mul y z));
-  "f x y"         == (f x y);
-  "x; y; z"       == (seq [x; seq [y; z]]);
-  "x + y; z"      == (seq [(add x y); z]);
-  "x\ny\nz"       == (seq [x; seq [y; z]]);
-  "x = y; z"      == (seq [(def x y); z]);
-  "f x\n  y"      == Term (Symbol "f", [x; y]);
-  "f x\ny"        == seq [Term (Symbol "f", [x]); y];
-  "f x\n\ty"      == Term (Symbol "f", [x; y]);
-  "f x y\n\tz"    == Term (Symbol "f", [x; y; z]);
+
+"5"             == Atom (Integer 5);
+"x + y"         == (add x y);
+"x + y * z"     == (add x (mul y z));
+"f x y"         == (f x y);
+"x; y; z"       == (seq [x; seq [y; z]]);
+"x + y; z"      == (seq [(add x y); z]);
+"x\ny\nz"       == (seq [x; seq [y; z]]);
+"x = y; z"      == (seq [(def x y); z]);
+"f x\n  y"      == Term (Symbol "f", [x; y]);
+"f x\ny"        == seq [Term (Symbol "f", [x]); y];
+"f x\n\ty"      == Term (Symbol "f", [x; y]);
+"f x y\n\tz"    == term "f" [x; y; z];
+"function sum x y = x + y"    == def (term "function" [sym "sum"; x; y]) (term "+" [x; y]);
+"function sum x y =\n  x + y" == def (term "function" [sym "sum"; x; y]) (term "+" [x; y]);
+"sum x\n  y" == term "sum" [x; y];
+"sum x\n\n  y" == term "sum" [x; y]
 
 
 

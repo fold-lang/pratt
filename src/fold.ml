@@ -14,9 +14,10 @@ let eol_symbol tok = symbol tok
     ~lbp: 1
     ~led: (fun left -> return left)
 
-let eof_symbol tok = symbol tok
+let end_symbol tok = symbol tok
     ~lbp: 0
     ~led: return
+    ~nud: (parse_expr 0)
 
 let define_symbol tok = symbol tok
     ~lbp: 1
@@ -44,9 +45,11 @@ let map =
     |> add_symbol "`)" (final 0)
     |> add_symbol "`:" block_symbol *)
     |> add_symbol "`print" prefix
+    |> add_symbol "`function" prefix
+    |> add_symbol "`add" prefix
     |> add_symbol "`atom" (atomic 1)
-    |> add_symbol "`EOF" eof_symbol
-    |> add_symbol "`EOL" eof_symbol (* for the REPL *)
+    |> add_symbol "`EOF" end_symbol
+    |> add_symbol "`EOL" end_symbol (* for the REPL *)
 
 
 let grammar map tok =
