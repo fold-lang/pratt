@@ -67,8 +67,8 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
                           Opt ('.', Star ('0'..'9' | '_')),
                           Opt (Chars "eE", Opt (Chars "+-"), '0'..'9',
                                Star ('0'..'9' | '_')) ]
-let identifier_char = [%sedlex.regexp? alphabetic]
-let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./:<=>?@^|~" ]
+let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
+let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~" ]
 let delimeter_char  = [%sedlex.regexp? Chars "()`,;\"'"]
 
 type lexer =
