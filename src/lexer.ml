@@ -86,27 +86,23 @@ let current_token_column lexer =
   Sedlexing.lexeme_end lexer.lexbuf -
     lexer.line_start - Sedlexing.lexeme_length lexer.lexbuf + 1
 
-let () = print "immutable"
+let current_location lexer =
+  { line   = lexer.line_count;
+    column = current_token_column lexer;
+    length = Sedlexing.lexeme_length lexer.lexbuf }
 
 let rec read_token ({ lexbuf } as lexer) =
-    let should_read_newline = lexer.filename = "<REPL>" in
+    let should_stop_on_newline = lexer.filename = "<REPL>" in
     match%sedlex lexbuf with
     | '\n' ->
-        if should_read_newline
-          then begin
-            create_token (Symbol "EOL")
-              ~loc: { line   = lexer.line_count;
-                      column = current_token_column lexer;
-                      length = Sedlexing.lexeme_length lexbuf } ()
-          end
-          else read_token (increment_line lexer)
+        if should_stop_on_newline
+          then create_token (Symbol "EOF") ~loc: (current_location lexer) ()
+          else create_token (Symbol "EOL") ~loc: (current_location lexer) ()
     | '\t' | ' ' -> read_token lexer
     | int_literal ->
         begin try
           create_token (Integer (int_of_string (Sedlexing.Utf8.lexeme lexbuf)))
-            ~loc: { line   = lexer.line_count;
-                    column = current_token_column lexer;
-                    length = Sedlexing.lexeme_length lexbuf } ()
+            ~loc: (current_location lexer) ()
         with Failure _ ->
           raise (Failure (format "Int literal overflow: %d, %d"
                                  (fst (Sedlexing.loc lexbuf))
@@ -114,23 +110,15 @@ let rec read_token ({ lexbuf } as lexer) =
         end
     | float_literal ->
         create_token (Float (float_of_string (Sedlexing.Utf8.lexeme lexbuf)))
-          ~loc: { line   = lexer.line_count;
-                  column = current_token_column lexer;
-                  length = Sedlexing.lexeme_length lexbuf } ()
+          ~loc: (current_location lexer) ()
     | Plus identifier_char | delimeter_char ->
         create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
-          ~loc: { line   = lexer.line_count;
-                  column = current_token_column lexer;
-                  length = Sedlexing.lexeme_length lexbuf } ()
+          ~loc: (current_location lexer) ()
     | Plus operator_char ->
         create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
-          ~loc: { line   = lexer.line_count;
-                  column = current_token_column lexer;
-                  length = Sedlexing.lexeme_length lexbuf } ()
+          ~loc: (current_location lexer) ()
     | eof -> create_token (Symbol "EOF")
-                 ~loc: { line   = lexer.line_count;
-                         column = current_token_column lexer;
-                         length = Sedlexing.lexeme_length lexbuf } ()
+                 ~loc: (current_location lexer) ()
     | any ->
         raise (Failure (format "%d: %d: Illegal_character: %s"
                                  (fst (Sedlexing.loc lexbuf))

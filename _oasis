@@ -7,8 +7,22 @@ License:     MIT
 BuildTools:  ocamlbuild
 Plugins: META (0.4), DevFiles (0.4)
 
+
 Executable fold
-  Path:             src/
-  MainIs:           main.ml
-  BuildDepends: 	sedlex
+  Path:           src/
+  MainIs:         main.ml
+  BuildDepends:   fold
+
+Library fold
+  Path:           src/
+  FindlibName:    fold
+  Pack:           true
+  BuildDepends:   sedlex
+  Modules:        Foundation,
+                  Lexer,
+                  Syntax,
+                  Parser,
+                  Pratt,
+                  Lang
+
 

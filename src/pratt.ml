@@ -46,44 +46,11 @@ let advance = get >>= fun s ->
 
 let consume = advance >> get
 
-
-(* --- Layout --- *)
-
-let with_indent indent p =
-  get >>= fun s ->
-    let curr_indent = s.level in
-    put { s with level = indent } >>
-    p >>= fun e ->
-        put { s with level = curr_indent } >>
-    return e
-
-let use_indent indent p =
-  get >>= fun s ->
-    put { s with level = indent } >> p
-
-let laidout p =
-  get >>= fun s ->
-    with_indent (current_token_column s.lexer) p
-
-let indent_cmp cmp =
-  get >>= fun s ->
-    let curr_indent = s.level in
-    let next_indent = current_token_column s.lexer in
-    if (cmp curr_indent next_indent)
-      then zero
-      else error (format "Indentation does not match: curr = %d, next = %d"
-                         curr_indent next_indent)
-
-let indented = indent_cmp (>)
-let align    = indent_cmp (=)
-
-let block p =
-  laidout (many (align >> p))
-
 let rec parse_next rbp left =
     get >>= fun { symbol; level } ->
         trace (format "led[%d]: ~ tok = <%s>, col = %d, lbp = %d, rbp = %d" level
-                      (show_literal symbol.tok.value) (symbol.tok.location.column) symbol.lbp rbp);
+                      (show_literal symbol.tok.value)
+                      (symbol.tok.location.column) symbol.lbp rbp);
         if symbol.lbp > rbp
             then (trace (format "led[%d]: > left = %s" level (show_expr left));
                   advance >> symbol.led left >>= fun next ->
@@ -95,7 +62,8 @@ let rec parse_next rbp left =
 let parse_expr rbp =
     get >>= fun { symbol; level } ->
         trace (format "nud[%d]: ? tok = <%s>, col = %d, rbp = %d" level
-                      (show_literal symbol.tok.value) (symbol.tok.location.column) rbp);
+                      (show_literal symbol.tok.value)
+                      (symbol.tok.location.column) rbp);
         advance >> symbol.nud >>= fun left ->
             trace (format "nud[%d]: * left = %s" level (show_expr left));
             parse_next rbp left
@@ -110,23 +78,12 @@ let infix_r lbp tok = symbol tok
     ~led: (fun prev -> parse_expr (lbp - 1) >>=
            fun next -> return (Term (tok.value, [prev; next])))
 
-let seq expr_list = (Term (Symbol ";", expr_list))
-
-let indent_led indent expr = fun prev ->
-  let parse_atomic =
-      parse_next 0 expr >>= fun next -> return (seq [prev; next]) in
-  get >>= fun st ->
-    match indent <~> st.level with
-      | `EQ -> parse_atomic
-      | `GT -> return (append_expr prev expr)
-      | `LT -> use_indent indent parse_atomic
-
 let prefix tok =
     let expr = (Term (tok.value, [])) in
     symbol tok
       ~lbp: 1
-      ~led: (indent_led tok.location.column expr)
-      ~nud: (use_indent tok.location.column (return expr))
+      ~led: (fun prev -> return (append_expr prev expr))
+      ~nud: (return expr)
 
 let postfix lbp tok = symbol tok
     ~lbp: lbp
@@ -136,7 +93,7 @@ let atomic lbp tok =
     let expr = Atom tok.value in
     symbol tok
       ~lbp: lbp
-      ~led: (indent_led tok.location.column expr)
+      ~led: (fun prev -> return (append_expr prev expr))
       ~nud: (return expr)
 
 let parse_literal lit =

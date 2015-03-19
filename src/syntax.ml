@@ -7,11 +7,13 @@ type expr = Atom of literal
 
 let epsilon = Atom (Symbol "")
 
+let rand_expr = Atom (Integer 42)
+
 let rec show_expr = function
     | Atom x -> show_literal x
     | Term (f, args) -> format "(%s : %s)" (show_literal f) (join " " (map show_expr args))
 
 
 let append_expr e1 e2 =
-	e1 => function | Term (head, args) -> Term (head, args @ [e2])
-				   | Atom head -> print "are you sure?"; Term (head, [e2])
+    e1 => function | Term (head, args) -> Term (head, args @ [e2])
+                   | Atom head -> print "are you sure?"; Term (head, [e2])

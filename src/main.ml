@@ -1,10 +1,10 @@
 
-open Foundation
-open Syntax
-open Lexer
-open Parser
-open Pratt
-open Fold
+open Fold.Foundation
+open Fold.Syntax
+open Fold.Lexer
+open Fold.Parser
+open Fold.Pratt
+open Fold.Lang
 
 
 let fold_logo =
