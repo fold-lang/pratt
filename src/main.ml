@@ -14,7 +14,7 @@ blue ("  ▝▝▐▐▝▝ ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|" ^ 
 blue ("    ▐▐   ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|  " ^ (underline (bright_white "http://fold-lang.org\n"))) ^
 blue ("    ▐▐     ▝▝    ▝▝   ▝▝▝    ") ^ ("|" ^ bright_white "  Type ? for help.\n") ^
 blue ("  ▗▐▝                      \n") ^
-      "                           \n"  ^
+          "                           \n"  ^
  (italic "  \"Simplicity is prerequisite for reliability.\"\n") ^
       "      — Edsger W. Dijkstra"
 

@@ -7,20 +7,23 @@ open Pratt
 
 module Table = Map.Make(String)
 
-let seq e1 e2 = Term (Symbol ";", [e1; e2])
-
 let add_symbol name sym =
     Table.add name sym
 
 let eol_symbol tok = symbol tok
     ~lbp: 1
-    ~led: (fun prev -> parse_next 1 prev)
+    (* TODO: Combine both. Check if next symbol implements led.
+             If yes => parse_next, else => parse_expr *)
+    ~led: (fun e1 -> (parse_led 0 e1)
+                 <|> (parse_expr 0 >>= fun e2 ->
+                        return (Term (Symbol ";",
+                                     [e1; e2]))))
     ~nud: (parse_expr 0)
 
 let end_symbol tok = symbol tok
     ~lbp: 0
-    (* ~led: return
-    ~nud: (parse_expr 0) *)
+    ~led: return
+    (* ~nud: (parse_expr 0) *)
 
 let map =
     Table.empty
@@ -33,14 +36,19 @@ let map =
     |> add_symbol "`++" (postfix 8)
     |> add_symbol "`!" prefix
     |> add_symbol "`f" prefix
-    |> add_symbol "`;" (infix 1)
-    (*|> add_symbol "`->" (infix 1)
-    |> add_symbol "`!!" (postfix 8)
-    (* |> add_symbol "`if" if_symbol *)
-    |> add_symbol "`(" (initial 9)
-    |> add_symbol "`)"
-    ion (final 0)
-    |> add_symbol "`:" block_symbol *)
+    |> add_symbol "`g" prefix
+    |> add_symbol "`;" (infix_r 1)
+
+    |> add_symbol "`(" (group 9)
+    (* |> add_symbol "`|" (final 0) *)
+    |> add_symbol "`)" (final 0)
+
+    |> add_symbol "`:" (final 0)
+    |> add_symbol "`?" (ternary_infix 2)
+    |> add_symbol "`if" (ternary_prefix 2)
+    |> add_symbol "`then" (final 0)
+    |> add_symbol "`else" (final 0)
+    |> add_symbol "`->" (infix 1)
     |> add_symbol "`print" prefix
     |> add_symbol "`function" prefix
     |> add_symbol "`add" prefix

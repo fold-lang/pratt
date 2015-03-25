@@ -63,6 +63,8 @@ let printf = Printf.printf
 
 let format = Printf.sprintf
 
+let (%) = Printf.sprintf
+
 let first (x, _) = x
 let second (_, y) = y
 

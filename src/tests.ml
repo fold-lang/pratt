@@ -28,6 +28,7 @@ let (==) s e =
 let sym x = Atom (Symbol x)
 let str x = Atom (String x)
 let int x = Atom (Integer x)
+let seq e1 e2 = Term (Symbol ";", [e1; e2])
 let term head args = Term (Symbol head, args)
 
 let x           = Atom (Symbol "x")
@@ -38,15 +39,31 @@ let mul x y     = Term (Symbol "*", [x; y])
 let f x y       = Term (Symbol "f", [x; y])
 let g x         = Term (Symbol "g", [x])
 let def x y     = Term (Symbol "=", [x; y])
-
 let run () =
-  "5"             == int 5;
-  "x + y"         == (add x y);
-  "x + y * z"     == (add x (mul y z));
-  "f x y"         == (f x y);
-  "x; y; z"       == (seq x (seq y z));
-  "x + y; z"      == (seq (add x y) z);
-  "x +\ny"        == (add x y);
-  "x\n+ y"        == (add x y);
-  "x\ny\nz"       == (seq x (seq y z));
-  "x\n! y"        == (seq x (term "!" [y]));
+
+  "5"                   == int 5;
+  "x + y"               == (add x y);
+  "x + y * z"           == (add x (mul y z));
+  "f x y"               == (f x y);
+
+  "(f x y)"               == (f x y);
+  "(f x\ny)"               == (f x y);
+
+  "(x)"                 == x;
+  "(((x)))"             == x;
+  "(x + y)"             == (add x y);
+  "(x + y) * z"         == (mul (add x y) z);
+  "(x + (y + y)) * z"   == (mul (add x (add y y)) z);
+  "(x +\ny)"            == (add x y);
+  "(f x\ny)"            == (f x y);
+  "x ? 1 : 0"           == (term "?" [x; int 1; int 0]);
+  "if x then 1 else 0"  == (term "if" [x; int 1; int 0]);
+  "x; y; z"             == (seq x (seq y z));
+  "x + y; z"            == (seq (add x y) z);
+  "x\ny"                == (seq x y);
+  "x +\ny"              == (add x y);
+  "x\n! y"              == (seq x (term "!" [y]));
+
+  ~> "if x then if y then 2 else 1 else 0"
+
+
