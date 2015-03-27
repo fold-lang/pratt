@@ -10,11 +10,16 @@ type literal =
     | Integer of int
 
 let show_literal = function
+    | Symbol  x -> "`%s" % (bright_white x)
+    | String  x -> format "\"%s\"" x
+    | Float   x -> format "%f" x
+    | Integer x -> yellow ("%d" % x)
+
+let string_of_literal = function
     | Symbol  x -> format "`%s" x
     | String  x -> format "\"%s\"" x
     | Float   x -> format "%f" x
     | Integer x -> format "%d" x
-
 
 (* -- Location -- *)
 
@@ -29,7 +34,7 @@ let empty_location =
       length   = 0 }
 
 let show_location x =
-    format "%d:%d" x.line x.column
+    format "%d: %d" x.line x.column
 
 (* -- Token -- *)
 
@@ -69,7 +74,7 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
                                Star ('0'..'9' | '_')) ]
 let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
 let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~" ]
-let delimeter_char  = [%sedlex.regexp? Chars "()`,;\"'"]
+let delimeter_char  = [%sedlex.regexp? Chars "(){}[]`,;\"'"]
 
 type lexer =
   { filename           : string;
@@ -79,8 +84,7 @@ type lexer =
 
 let increment_line lexer =
   lexer.line_start <- Sedlexing.lexeme_end lexer.lexbuf;
-  lexer.line_count <- lexer.line_count + 1;
-  lexer
+  lexer.line_count <- lexer.line_count + 1
 
 let current_token_column lexer =
   Sedlexing.lexeme_end lexer.lexbuf -
@@ -92,12 +96,17 @@ let current_location lexer =
     length = Sedlexing.lexeme_length lexer.lexbuf }
 
 let rec read_token ({ lexbuf } as lexer) =
-    let should_stop_on_newline = lexer.filename = "<REPL>" in
+    let in_repl = lexer.filename = "<REPL>" in
     match%sedlex lexbuf with
     | '\n' ->
-        if should_stop_on_newline
-          then create_token (Symbol "EOF") ~loc: (current_location lexer) ()
-          else create_token (Symbol "EOL") ~loc: (current_location lexer) ()
+      let token =
+        if in_repl
+          then create_token (Symbol "EOL_REPL") ~loc: (current_location lexer) ()
+          else create_token (Symbol "EOL") ~loc: (current_location lexer) () in
+      begin
+        increment_line lexer;
+        token
+      end
     | '\t' | ' ' -> read_token lexer
     | int_literal ->
         begin try

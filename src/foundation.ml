@@ -38,6 +38,7 @@ let defined_option = function
 
 
 let (=>) = (|>)
+let ($) = (@@)
 
 
 let rec repeat_until fn limit =
@@ -63,7 +64,9 @@ let printf = Printf.printf
 
 let format = Printf.sprintf
 
-let (%) = Printf.sprintf
+let (%) fmt x = Printf.sprintf fmt x
+let (%%) fmt (x, y) = Printf.sprintf fmt x y
+let (%%%) fmt (x, y, z) = Printf.sprintf fmt x y z
 
 let first (x, _) = x
 let second (_, y) = y

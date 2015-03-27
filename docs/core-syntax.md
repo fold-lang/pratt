@@ -28,6 +28,11 @@ Which is translated as a sequence of `[<expr>, <EOL>, <TAB>, <expr>]`.
 
 ## Blocks
 
+    expr = atom | infix | prefix | block
+    infix = expr <op> expr
+    prefix =
+    block = `{ expr* `}
+
     print "Hello, "
         (capitalize "World")
         "!"
@@ -84,4 +89,8 @@ Which is translated as a sequence of `[<expr>, <EOL>, <TAB>, <expr>]`.
 - All tokens on the same line have the indentation level equal to the
 
 
+## Case Studies
 
+
+(get_function `sum cache: Yes) 3 2
+{ hey; f }

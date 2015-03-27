@@ -23,10 +23,7 @@ let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
 
 let (<|>) p q = fun s ->
     match p s with
-    | Error m -> begin match q s with
-        | Error _ -> Error m
-        | ok -> ok
-    end
+    | Error m -> q s
     | ok -> ok
 
 let inspect f = get >>= fun s ->
@@ -46,7 +43,7 @@ let rec many p =
 let satisfy test =
     get >>= fun x ->
     if (test x) then return x
-                else error ""
+                else error "could not satisfy test"
 
 let exactly x  = satisfy ((=) x)
 let one_of  xs = satisfy (fun x -> List.mem x xs)
