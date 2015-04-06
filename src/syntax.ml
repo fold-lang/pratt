@@ -5,7 +5,7 @@ open Lexer
 type expr = Atom of literal
           | Term of literal * expr list
 
-let epsilon = Atom (Symbol "")
+let unit = Atom (Symbol "()")
 
 let rand_expr = Atom (Integer 42)
 

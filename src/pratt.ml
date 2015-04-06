@@ -4,154 +4,99 @@ open Lexer
 open Syntax
 open Parser
 
-type state =
-  { lexer   : lexer;
-    grammar : token -> symbol;
-    level   : int;
-    symbol  : symbol }
+type state = { lexer   : lexer;
+               grammar : (token -> handler) Grammar.t;
+               handler : handler }
 
-and symbol =
-  { tok : token;
-    lbp : int;
-    led : (expr -> (expr, state) parser) option;
-    nud : ((expr, state) parser) option }
+and handler = { token : token;
+                lbp   : int;
+                nud   : (expr, state) parser;
+                led   : expr -> (expr, state) parser;
+                scope : (token -> handler) Grammar.Scope.t option }
 
 (* -- Error Handling -- *)
 
-let led_error tok =
-  error (format "%s: %s cannot be used in infix position."
-                (show_location tok.location)
-                (show_literal tok.value))
+let led_error : expr -> (expr, state) parser = fun _ ->
+  get >>= fun { handler } ->
+    error $ "%s cannot be used in infix position." % (show_token handler.token)
 
-let nud_error tok =
-  error (format "%s: %s cannot be used in prefix position."
-                (show_location tok.location)
-                (show_literal tok.value))
+let nud_error : (expr, state) parser =
+  get >>= fun { handler } ->
+    error $ "%s cannot be used in prefix position." % (show_token handler.token)
 
 let (<?>) p label = fun s ->
     match p s with
-    | Error _ -> Error ("%s: expected %s but found %s." %%%
-                  (show_location s.symbol.tok.location, label,
-                   show_literal s.symbol.tok.value))
+    | Error _ -> Error ("%s found but %s expected" %%
+                  (show_token s.handler.token, label))
     | ok -> ok
 
-
-let symbol ?(lbp = 0) ?led ?nud tok =
-  { tok = tok;
-    lbp = lbp;
-    led = led;
-    nud = nud }
+let advance = get >>= fun s ->
+  let token = read_token s.lexer in
+  let name = string_of_literal token.value in
+  let binding = Grammar.lookup s.grammar name in
+  void $ ~% "advance: token = %s, scope = %s" (show_token token) (Grammar.show s.grammar);
+  let handler = binding token in
+  put { s with handler }
 
 let inspect_token =
- inspect (fun {symbol} -> print $ "tok: %s" % (show_literal symbol.tok.value))
+  inspect (fun {handler} ->
+    print $ "token: %s" % (show_literal handler.token.value))
 
-let advance = get >>= fun s ->
-    let token  = read_token s.lexer in
-    let symbol = s.grammar token in
-    put { s with symbol = symbol }
+let inspect_scope =
+  inspect (fun {grammar; handler} ->
+    match grammar with
+    | (scope::env, default) ->
+      print $ "scope(%s): %s" %% (show_literal handler.token.value, Grammar.show_scope scope)
+    | ([], _) -> raise (Failure "empty grammar"))
+
+let inspect_grammar =
+  inspect (fun {grammar; handler} ->
+    print $ "grammar(%s) = %s" %% (show_token handler.token, Grammar.show grammar))
+
+let expect x =
+  satisfy (fun s -> s.handler.token.value = x) <?> (show_literal x)
 
 let consume x =
-  satisfy (fun s -> s.symbol.tok.value = x) <?> (show_literal x)
-  >> advance
+  expect x >> advance
 
-let rec parse_next rbp left =
-  get >>= fun { symbol } ->
-    match symbol.led with
-    | Some led ->
-      (trace (format "led: ~ tok = <%s>, col = %d, lbp = %d, rbp = %d"
-                     (show_literal symbol.tok.value)
-                     symbol.tok.location.column symbol.lbp rbp);
-      if symbol.lbp > rbp then
-        (trace (format "led: > left = %s" (show_expr left));
-         advance >> led left >>= fun next ->
-          (trace (format "led: * next = %s" (show_expr next));
-          parse_next rbp next))
-      else
-        (trace (format "led: ! left = %s" (show_expr left));
-         return left))
-    | None -> led_error symbol.tok
+let push_scope scope =
+  get >>= fun s ->
+    let (env, default) = s.grammar in
+    put { s with grammar = (scope::env, default) }
+
+let pop_scope =
+  get >>= fun s ->
+    match s.grammar with
+    | (_::env, default) -> put { s with grammar = (env, default) }
+    | ([], _) -> raise (Failure "cannot pop scope on empty grammar")
+
+let with_scope s p =
+  match s with
+  | None -> p
+  | Some s' -> push_scope s' >> p
+
+let rec parse_next rbp x =
+  get >>= fun { handler } ->
+  void $ ~% "parse_next: token = %s, lbp = %d, rbp = %d" (show_token handler.token) handler.lbp rbp;
+    if handler.lbp > rbp
+      then handler.led x >>= parse_next rbp
+      else return x
 
 let parse_nud rbp =
-  get >>= fun { symbol } ->
-  match symbol.nud with
-  | Some nud ->
-    (trace (format "nud: ? tok = <%s>, col = %d, rbp = %d"
-                   (show_literal symbol.tok.value)
-                   (symbol.tok.location.column) rbp);
-    advance >> nud)
-  | None -> nud_error symbol.tok
+  get >>= fun { handler } ->
+    handler.nud
 
 let parse_expr rbp =
-  parse_nud rbp >>= fun left ->
-    trace (format "exp: * left = %s" (show_expr left));
-    parse_next rbp left
+  parse_nud rbp >>= parse_next rbp
 
-let infix lbp tok = symbol tok
-    ~lbp: lbp
-    ~led: (fun left  -> parse_expr lbp >>=
-           fun right -> return (Term (tok.value, [left; right])))
+let init ~lexer ~grammar () =
+  let token = read_token lexer in
+  let name = string_of_literal token.value in
+  let state = { lexer;
+                grammar;
+                handler = (Grammar.lookup grammar name) token } in
+  match run (parse_expr 0 << expect (Symbol "EOF")) state with
+  | Ok (value, _) -> value
+  | Error msg -> raise (Failure msg)
 
-let infix_r lbp tok = symbol tok
-    ~lbp: lbp
-    ~led: (fun prev -> parse_expr (lbp - 1) >>=
-           fun next -> return (Term (tok.value, [prev; next])))
 
-let postfix lbp tok = symbol tok
-    ~lbp: lbp
-    ~led: (fun x -> return (Term (tok.value, [x])))
-
-let prefix tok =
-  let ex xs = (Term (tok.value, xs)) in
-    symbol tok
-      ~nud: (many (parse_nud 0) >>= fun expr_list ->
-              return (ex expr_list))
-
-let atomic lbp tok =
-  let e0 = Atom tok.value in
-    symbol tok
-      ~lbp: lbp
-      ~nud: (return e0)
-
-let initial lbp tok = symbol tok
-    ~lbp: lbp
-    ~nud: (parse_expr 0 << consume (Symbol ")"))
-
-let final lbp tok = symbol tok
-    ~lbp: lbp
-    ~led: return
-
-let ternary_infix lbp tok = symbol tok
-  ~lbp
-  ~led: (fun x -> parse_expr 0 >>=
-         fun y -> consume (Symbol ":") >> parse_expr (lbp - 1) >>=
-         fun z -> return (Term (tok.value, [x; y; z])))
-
-let ternary_prefix lbp tok = symbol tok
-  ~lbp
-  ~nud: (parse_expr 0 >>=
-           fun x -> consume (Symbol "then") >> parse_expr 0 >>=
-           fun y -> consume (Symbol "else") >> parse_expr (lbp - 1) >>=
-           fun z -> return (Term (tok.value, [x; y; z])))
-
-let group lbp tok = symbol tok
-  ~lbp
-  ~nud: (parse_expr 0 >>= fun x -> consume (Symbol ")") >> return x)
-
-let group_2 initial body final =
-  consume initial >> body >> consume final
-
-let block lbp tok = symbol tok
-  ~lbp
-  ~nud: (parse_expr 0)
-
-let parse ~lexer ~grammar ?start () =
-    let t0 = match start with
-            | None -> (read_token lexer)
-            | Some t -> t in
-    let s0 = { lexer;
-               level = 1;
-               grammar;
-               symbol = grammar t0 } in
-    match run (parse_expr 0) s0 with
-    | Ok (value, _) -> value
-    | Error msg -> raise (Failure msg)

@@ -34,27 +34,49 @@ let empty_location =
       length   = 0 }
 
 let show_location x =
-    format "%d: %d" x.line x.column
+    format "%d/%d" x.line x.column
 
 (* -- Token -- *)
+module Separation = struct
+  type t =
+    | Stuck    (* Stuck to the previous element *)
+    | Normal   (* Separated with a space *)
+    | Strong   (* Separated with \n *)
+    | Explicit (* Separated with ; *)
+
+  let to_int = function
+    | Stuck    -> 0
+    | Normal   -> 1
+    | Strong   -> 2
+    | Explicit -> 3
+
+  let of_int = function
+    | 0 -> Stuck
+    | 1 -> Normal
+    | 2 -> Strong
+    | 3 -> Explicit
+    | _ -> assert false
+
+  let to_str = function
+    | Stuck    -> "Stuck"
+    | Normal   -> "Normal"
+    | Strong   -> "Strong"
+    | Explicit -> "Explicit"
+
+  let max x y = of_int (max (to_int x) (to_int y))
+end
 
 type token_stream = Sedlexing.lexbuf
 
 type token =
-    { value    : literal;
-      location : location }
-
-let create_token value ?(loc = empty_location) () =
-    { value = value;
-      location = loc }
-
-let start_token   = create_token (Symbol "module")  ()
-let end_token     = create_token (Symbol "EOF")     ()
-let newline_token = create_token (Symbol "EOL") ()
+  { value             : literal;
+    location          : location;
+    separation_before : Separation.t;
+    separation_after  : Separation.t }
 
 let show_token tok =
-    format "%s @ %s" (show_literal  tok.value)
-                     (show_location tok.location)
+    format "%s: %s" (show_location tok.location) (show_literal tok.value)
+
 
 (* -- Lexer -- *)
 
@@ -75,12 +97,17 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
 let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
 let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~" ]
 let delimeter_char  = [%sedlex.regexp? Chars "(){}[]`,;\"'"]
+let symbol_literal  = [%sedlex.regexp? identifier_char | operator_char | delimeter_char]
+let comment         = [%sedlex.regexp? "--", Star (Compl '\n')]
+let white_space     = [%sedlex.regexp? Plus (' ' | '\t')]
 
 type lexer =
-  { filename           : string;
-    lexbuf             : Sedlexing.lexbuf;
-    mutable line_start : int;
-    mutable line_count : int }
+  { filename                    : string;
+    lexbuf                      : Sedlexing.lexbuf;
+    mutable line_start          : int;
+    mutable line_count          : int;
+    mutable previous_separation : Separation.t;
+    mutable group_counter       : int }
 
 let increment_line lexer =
   lexer.line_start <- Sedlexing.lexeme_end lexer.lexbuf;
@@ -90,61 +117,69 @@ let current_token_column lexer =
   Sedlexing.lexeme_end lexer.lexbuf -
     lexer.line_start - Sedlexing.lexeme_length lexer.lexbuf + 1
 
+let current_lexeme lexer =
+  Sedlexing.Utf8.lexeme lexer.lexbuf
+
 let current_location lexer =
   { line   = lexer.line_count;
     column = current_token_column lexer;
     length = Sedlexing.lexeme_length lexer.lexbuf }
 
-let rec read_token ({ lexbuf } as lexer) =
-    let in_repl = lexer.filename = "<REPL>" in
-    match%sedlex lexbuf with
-    | '\n' ->
-      let token =
-        if in_repl
-          then create_token (Symbol "EOL_REPL") ~loc: (current_location lexer) ()
-          else create_token (Symbol "EOL") ~loc: (current_location lexer) () in
-      begin
-        increment_line lexer;
-        token
-      end
-    | '\t' | ' ' -> read_token lexer
-    | int_literal ->
-        begin try
-          create_token (Integer (int_of_string (Sedlexing.Utf8.lexeme lexbuf)))
-            ~loc: (current_location lexer) ()
-        with Failure _ ->
-          raise (Failure (format "Int literal overflow: %d, %d"
-                                 (fst (Sedlexing.loc lexbuf))
-                                 (snd (Sedlexing.loc lexbuf))))
-        end
-    | float_literal ->
-        create_token (Float (float_of_string (Sedlexing.Utf8.lexeme lexbuf)))
-          ~loc: (current_location lexer) ()
-    | Plus identifier_char | delimeter_char ->
-        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
-          ~loc: (current_location lexer) ()
-    | Plus operator_char ->
-        create_token (Symbol (Sedlexing.Utf8.lexeme lexbuf))
-          ~loc: (current_location lexer) ()
-    | eof -> create_token (Symbol "EOF")
-                 ~loc: (current_location lexer) ()
-    | any ->
-        raise (Failure (format "%d: %d: Illegal_character: %s"
-                                 (fst (Sedlexing.loc lexbuf))
-                                 (snd (Sedlexing.loc lexbuf))
-                                 (Sedlexing.Utf8.lexeme lexbuf)))
-    | _ -> assert false (* https://github.com/alainfrisch/sedlex/issues/16 *)
+let lexer_error lexer msg =
+  raise (Failure ("%s: %s: '%s'." %%%
+                  ((show_location (current_location lexer)), msg,
+                  (current_lexeme lexer))))
 
-let lexer_with_string name str =
-  { filename = name;
-    lexbuf = Sedlexing.Utf8.from_string str;
-    line_start = 0;
-    line_count = 1 }
 
-let lexer_with_channel name chn =
-  { filename = name;
-    lexbuf = Sedlexing.Utf8.from_channel chn;
-    line_start = 0;
-    line_count = 1 }
+let rec read_separator ({ lexbuf } as lexer) current =
+  match%sedlex lexbuf with
+  | Plus (white_space | comment)
+         -> read_separator lexer (Separation.max current Separation.Normal)
+  | '\n' -> read_separator lexer (Separation.max current Separation.Strong)
+  | ';'  -> read_separator lexer (Separation.max current Separation.Explicit)
+  | eof  -> Separation.max current Separation.Strong
+  | ""   -> current
+  | _    -> assert false
 
-(* let currentPosition () = Token.{fileName=name; lineNumber=state.line; lineOffset = Sedlexing.lexeme_end buf-state.lineStart} in *)
+let rec read_literal ({lexbuf} as lexer) =
+  match%sedlex lexbuf with
+  | int_literal    -> Integer (int_of_string (current_lexeme lexer))
+  | float_literal  -> Float (float_of_string (current_lexeme lexer))
+  | symbol_literal -> Symbol (current_lexeme lexer)
+  (* | '('            -> lexer.group_counter <- (lexer.group_counter + 1); *)
+  (*                     Symbol (current_lexeme lexer) *)
+  (* | ')'            -> lexer.group_counter <- (lexer.group_counter - 1); *)
+  (*                     Symbol (current_lexeme lexer) *)
+  | eof            -> assert (lexer.group_counter = 0); Symbol "EOF"
+  | any            -> lexer_error lexer "illegal character"
+  | _              -> assert false
+let read_token lexer =
+  let separation_before = lexer.previous_separation in
+  let literal = read_literal lexer in
+  let separation_after = read_separator lexer Separation.Stuck in
+  let location = current_location lexer in
+  lexer.previous_separation <- separation_after;
+  { value             = literal;
+    location          = location;
+    separation_before = separation_before;
+    separation_after  = separation_after; }
+
+let create_lexer name lexbuf =
+  let lexer = { filename            = name;
+                lexbuf              = lexbuf;
+                line_start          = 0;
+                line_count          = 1;
+                previous_separation = Separation.Strong;
+                group_counter       = 0 } in
+  (* Consume the initial whitespace or comments. *)
+  let first_separation = read_separator lexer lexer.previous_separation in
+  lexer.previous_separation <- first_separation;
+  lexer
+
+
+let create_lexer_with_string name str =
+  create_lexer name (Sedlexing.Utf8.from_string str)
+
+let create_lexer_with_channel name chn =
+  create_lexer name (Sedlexing.Utf8.from_channel chn)
+

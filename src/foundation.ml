@@ -16,6 +16,8 @@ let (>>) = invcompose
 
 type void = Void
 
+let void _ = ()
+
 (* Identity function. *)
 let identity : 'a -> 'a = fun x -> x
 
@@ -67,6 +69,7 @@ let format = Printf.sprintf
 let (%) fmt x = Printf.sprintf fmt x
 let (%%) fmt (x, y) = Printf.sprintf fmt x y
 let (%%%) fmt (x, y, z) = Printf.sprintf fmt x y z
+let (~%) = Printf.sprintf
 
 let first (x, _) = x
 let second (_, y) = y
@@ -121,23 +124,24 @@ let blink x  = "\027[5m" ^ x ^ "\027[0m"
 
 let log x = print ("-- " ^ x)
 
-let debug = false
+let debug = true
 
 let trace x =
   if debug then print ((cyan " > ") ^ x)
            else ()
 
+let hi () = print "hi"
+
 let warn x =
   if debug then print ((yellow " ! ") ^ x)
            else ()
 
-let error = failwith
+let fail = failwith
 
-
-let (|?) maybe default =
+let (||) maybe default =
   match maybe with
   | Some v -> v
-  | None -> Lazy.force default
+  | None -> default
 
 let if_some fn = function
   | None -> ()

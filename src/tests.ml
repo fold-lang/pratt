@@ -5,9 +5,11 @@ open Fold.Syntax
 open Fold.Pratt
 open Fold.Lang
 
+(* -- Mini Testing Engine -- *)
+
 let parse_string s =
-    parse ~lexer: (lexer_with_string "Fold.Lang.Tests" s)
-        ~grammar: (grammar map) ()
+    init ~lexer: (create_lexer_with_string "Fold.Lang.Tests" s)
+         ~grammar: core_lang ()
 
 let (~>) s =
   try
@@ -34,6 +36,20 @@ let (==) s e =
     print_endline (bright_red " * " ^ bright_white "Error" ^ ": " ^ msg);
     flush stdout
 
+let (!!) s =
+  try
+    print_endline (format "%s %s" (bright_blue "->") (white s));
+    let r = parse_string s in
+    let m = bright_red "✗ " in
+    print_endline (format "%s %s %s %s" m (show_expr r) "::" (red "Expr"));
+    print_endline (bright_red " * " ^ bright_white "Error: expression expected to fail.");
+  with Failure msg ->
+    let m = (bright_green "✓ ") in
+    print_endline (format "%s %s" m (bright_white ("Expected failure" ^ ": " ^ msg)));
+    flush stdout
+
+(* -- Helper Definitions -- *)
+
 let sym x = Atom (Symbol x)
 let str x = Atom (String x)
 let int x = Atom (Integer x)
@@ -44,31 +60,64 @@ let x           = Atom (Symbol "x")
 let y           = Atom (Symbol "y")
 let z           = Atom (Symbol "z")
 let add x y     = Term (Symbol "+", [x; y])
+let neg x       = Term (Symbol "-", [x])
 let mul x y     = Term (Symbol "*", [x; y])
 let f x y       = Term (Symbol "f", [x; y])
 let g x         = Term (Symbol "g", [x])
 let def x y     = Term (Symbol "=", [x; y])
-let run () =
-(*
-  (* Literals and basic expressions. *)
+
+
+(* -- Test Groups -- *)
+
+let test_literals () =
   "x"                   == x;
-  "5"                   == int 5;
+  "5"                   == int 5
 
-  (* Arithmetic expressions. *)
-  "x + y"               == (add x y);
-  "x + y * z"           == (add x (mul y z));
+let test_arithmetic_operators () =
+  "x + y"      == (add x y);
+  "-x"         == (neg x);
+  "x + y * z"  == (add x (mul y z));
+  "x + y * -z" == (add x (mul y (neg z)))
 
-  (* Function application. *)
-  "f x y"               == (f x y);
-  "f x y + z"           == (add (f x y) z);
- *)
-  (* Expression grouping and precedence. *)
+let test_function_application () =
+  "f x y"      == (f x y);
+  "f x y + z"  == (add (f x y) z);
+  !! "x f "
+
+let test_block () =
+  "{}"     == unit;
+  "{\n}"   == unit;
+  "{x}"    == x
+
+let test_conditional () =
+  "if x then 1 else 0"   == Term (Symbol "if:then:else", [x; int 1; int 0]);
+  "if\nx then 1 else 0"  == Term (Symbol "if:then:else", [x; int 1; int 0])
+
+
+let test_groups () =
   "(x)"                 == x;
   "(((x)))"             == x;
   "(x + y)"             == (add x y);
   "(x + y) * z"         == (mul (add x y) z);
   "(x + (y + y)) * z"   == (mul (add x (add y y)) z);
   "(f x y)"             == (f x y);
+  !! "(";
+  !! "(x))"
+
+let run () =
+  test_literals ();
+  test_arithmetic_operators ();
+  test_function_application ();
+  test_groups ()
+
+  (* ~> "(f *)
+  (*        x y))"; *)
+  (* ~> "f *)
+  (*        x y" *)
+
+
+
+let other_tests () =
 
   (* End-of-line handling. *)
   "x\ny"                == (seq x y);
@@ -84,17 +133,16 @@ let run () =
   "{2 + 2}"             == (add (int 2) (int 2));
   "f x {2 + 2}"         == (f x (add (int 2) (int 2)));
 
-
-  (* "x ? 1 : 0"           == (term "?" [x; int 1; int 0]);
+  (* Other tests. *)
+  "x ? 1 : 0"           == (term "?" [x; int 1; int 0]);
   "if x then 1 else 0"  == (term "if" [x; int 1; int 0]);
   "x; y; z"             == (seq x (seq y z));
   "x + y; z"            == (seq (add x y) z);
-  "x = f y z; 5"        == (def x (seq (f y z) (int 5))); *)
+  "x = f y z; 5"        == (def x (seq (f y z) (int 5)));
 
 ~>
 "{1 + 1
 }";
-
 
 ~>
 "{-1}";

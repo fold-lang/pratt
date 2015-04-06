@@ -21,6 +21,7 @@ Library fold
   Modules:        Foundation,
                   Lexer,
                   Syntax,
+                  Grammar,
                   Parser,
                   Pratt,
                   Lang
