@@ -22,9 +22,9 @@ let (>>) p q = p >>= fun _ -> q
 let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
 
 let (<|>) p q = fun s ->
-    match p s with
-    | Error m -> q s
-    | ok -> ok
+  match p s with
+  | Error m -> q s
+  | ok -> ok
 
 let inspect f = get >>= fun s ->
     f s; put s

@@ -70,9 +70,7 @@ type token_stream = Sedlexing.lexbuf
 
 type token =
   { value             : literal;
-    location          : location;
-    separation_before : Separation.t;
-    separation_after  : Separation.t }
+    location          : location }
 
 let show_token tok =
     format "%s: %s" (show_location tok.location) (show_literal tok.value)
@@ -106,7 +104,6 @@ type lexer =
     lexbuf                      : Sedlexing.lexbuf;
     mutable line_start          : int;
     mutable line_count          : int;
-    mutable previous_separation : Separation.t;
     mutable group_counter       : int }
 
 let increment_line lexer =
@@ -130,52 +127,48 @@ let lexer_error lexer msg =
                   ((show_location (current_location lexer)), msg,
                   (current_lexeme lexer))))
 
-
-let rec read_separator ({ lexbuf } as lexer) current =
-  match%sedlex lexbuf with
-  | Plus (white_space | comment)
-         -> read_separator lexer (Separation.max current Separation.Normal)
-  | '\n' -> read_separator lexer (Separation.max current Separation.Strong)
-  | ';'  -> read_separator lexer (Separation.max current Separation.Explicit)
-  | eof  -> Separation.max current Separation.Strong
-  | ""   -> current
-  | _    -> assert false
+(* let rec read_separator ({ lexbuf } as lexer) current = *)
+(*   match%sedlex lexbuf with *)
+(*   | Plus (white_space | comment) *)
+(*          -> read_separator lexer (Separation.max current Separation.Normal) *)
+(*   | '\n' -> read_separator lexer (Separation.max current Separation.Strong) *)
+(*   | ';'  -> read_separator lexer (Separation.max current Separation.Explicit) *)
+(*   | eof  -> Separation.max current Separation.Strong *)
+(*   | ""   -> current *)
+(*   | _    -> assert false *)
 
 let rec read_literal ({lexbuf} as lexer) =
   match%sedlex lexbuf with
+  | Plus (white_space | comment) -> read_literal lexer
   | int_literal    -> Integer (int_of_string (current_lexeme lexer))
   | float_literal  -> Float (float_of_string (current_lexeme lexer))
+  | '(', Star ((white_space | '\n') | comment), ')' -> Symbol "()"
+  | '('            -> lexer.group_counter <- (lexer.group_counter + 1);
+                      Symbol (current_lexeme lexer)
+  | ')'            -> lexer.group_counter <- (lexer.group_counter - 1);
+                      (match lexer.group_counter <~> 0 with
+                       | `EQ | `GT -> Symbol (current_lexeme lexer)
+                       | `LT -> lexer_error lexer "unbalanced parenthesis")
+  | '\n'           -> (match lexer.group_counter <~> 0 with
+                       | `EQ -> Symbol "EOL"
+                       | `GT -> read_literal lexer
+                       | `LT -> lexer_error lexer "unbalanced parenthesis")
   | symbol_literal -> Symbol (current_lexeme lexer)
-  (* | '('            -> lexer.group_counter <- (lexer.group_counter + 1); *)
-  (*                     Symbol (current_lexeme lexer) *)
-  (* | ')'            -> lexer.group_counter <- (lexer.group_counter - 1); *)
-  (*                     Symbol (current_lexeme lexer) *)
-  | eof            -> assert (lexer.group_counter = 0); Symbol "EOF"
+  | eof            -> Symbol "EOF"
   | any            -> lexer_error lexer "illegal character"
   | _              -> assert false
 let read_token lexer =
-  let separation_before = lexer.previous_separation in
   let literal = read_literal lexer in
-  let separation_after = read_separator lexer Separation.Stuck in
   let location = current_location lexer in
-  lexer.previous_separation <- separation_after;
   { value             = literal;
-    location          = location;
-    separation_before = separation_before;
-    separation_after  = separation_after; }
+    location          = location }
 
 let create_lexer name lexbuf =
-  let lexer = { filename            = name;
-                lexbuf              = lexbuf;
-                line_start          = 0;
-                line_count          = 1;
-                previous_separation = Separation.Strong;
-                group_counter       = 0 } in
-  (* Consume the initial whitespace or comments. *)
-  let first_separation = read_separator lexer lexer.previous_separation in
-  lexer.previous_separation <- first_separation;
-  lexer
-
+  { filename      = name;
+    lexbuf        = lexbuf;
+    line_start    = 0;
+    line_count    = 1;
+    group_counter = 0 }
 
 let create_lexer_with_string name str =
   create_lexer name (Sedlexing.Utf8.from_string str)

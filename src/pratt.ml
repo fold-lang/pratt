@@ -10,17 +10,17 @@ type state = { lexer   : lexer;
 
 and handler = { token : token;
                 lbp   : int;
-                nud   : (expr, state) parser;
-                led   : expr -> (expr, state) parser;
+                nud   : (expr, state) parser option;
+                led   : (expr -> (expr, state) parser) option;
                 scope : (token -> handler) Grammar.Scope.t option }
 
 (* -- Error Handling -- *)
 
-let led_error : expr -> (expr, state) parser = fun _ ->
+let led_error =
   get >>= fun { handler } ->
     error $ "%s cannot be used in infix position." % (show_token handler.token)
 
-let nud_error : (expr, state) parser =
+let nud_error =
   get >>= fun { handler } ->
     error $ "%s cannot be used in prefix position." % (show_token handler.token)
 
@@ -77,17 +77,28 @@ let with_scope s p =
 
 let rec parse_next rbp x =
   get >>= fun { handler } ->
-  void $ ~% "parse_next: token = %s, lbp = %d, rbp = %d" (show_token handler.token) handler.lbp rbp;
-    if handler.lbp > rbp
-      then handler.led x >>= parse_next rbp
-      else return x
+    void (~% "parse_next: token = %s, x = %s, lbp = %d, rbp = %d"
+    (show_literal handler.token.value) (show_expr x) handler.lbp rbp);
+  if handler.lbp > rbp then
+      match handler.led with
+      | Some led -> advance >> led x >>= parse_next rbp
+      | None -> led_error
+    else return x
 
 let parse_nud rbp =
   get >>= fun { handler } ->
-    handler.nud
+  match handler.led with
+  | None -> (match handler.nud with
+    | Some nud -> advance >> nud
+    | None -> nud_error)
+  | Some _ -> nud_error
 
 let parse_expr rbp =
-  parse_nud rbp >>= parse_next rbp
+  get >>= fun { handler } ->
+    void ("parse_expr: token = %s, rbp = %d" %% (show_literal handler.token.value, rbp));
+    match handler.nud with
+    | Some nud -> advance >> nud >>= parse_next rbp
+    | None -> nud_error
 
 let init ~lexer ~grammar () =
   let token = read_token lexer in

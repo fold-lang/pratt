@@ -14,6 +14,11 @@ let rec show_expr = function
     | Term (f, args) -> format "(%s : %s)" (show_literal f) (join " " (map show_expr args))
 
 
-let append_expr e1 e2 =
-    e1 => function | Term (head, args) -> Term (head, args @ [e2])
-                   | Atom head -> print "are you sure?"; Term (head, [e2])
+let append_expr x y =
+  x => function | Term (head, args) -> Term (head, args @ [y])
+                | _ -> raise (Failure "expression accepts no arguments")
+
+let append_expr_list x ys =
+  x => function | Term (head, args) -> Term (head, args @ ys)
+                | _ -> raise (Failure "expression accepts no arguments")
+

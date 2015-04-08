@@ -56,11 +56,9 @@ let rec repeat_fn_to fn limit =
 		then []
 		else [x] @ repeat_fn_to fn limit
 
-let (!?) x = print_endline "*"; x
-let (!!) s =
-    print_endline ("= " ^ s); s
 
 let print = print_endline
+let p = print_endline
 
 let printf = Printf.printf
 
@@ -91,7 +89,7 @@ type 'a result =
 let color_format color =
 	format "\027[%dm%s\027[0m"
 	   (match color with
-		  | `Black   -> 30
+	    | `Black   -> 30
 	    | `Red     -> 31
 	    | `Green   -> 32
 	    | `Yellow  -> 33
@@ -130,7 +128,7 @@ let trace x =
   if debug then print ((cyan " > ") ^ x)
            else ()
 
-let hi () = print "hi"
+let (!!) _= print "* * *"
 
 let warn x =
   if debug then print ((yellow " ! ") ^ x)

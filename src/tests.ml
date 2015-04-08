@@ -1,52 +1,9 @@
 
-open Fold.Foundation
-open Fold.Lexer
 open Fold.Syntax
-open Fold.Pratt
-open Fold.Lang
+open Fold.Lexer
+open Fold.Foundation
+open Test_utils
 
-(* -- Mini Testing Engine -- *)
-
-let parse_string s =
-    init ~lexer: (create_lexer_with_string "Fold.Lang.Tests" s)
-         ~grammar: core_lang ()
-
-let (~>) s =
-  try
-    print ((bright_blue "-> ") ^ s);
-    print (" = " ^ show_expr (parse_string s))
-  with Failure msg ->
-    print_endline (bright_red " * " ^ bright_white "Error" ^ ": " ^ msg);
-    flush stdout
-
-let (~~) s = ()
-
-let (==) s e =
-  try
-    print_endline (format "%s %s" (bright_blue "->") (white s));
-    let r = parse_string s in
-    let y = r = e in
-    let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
-    print_endline (format "%s %s %s %s" i (show_expr r) "::" (red "Expr"));
-    if not y then
-        (print_endline (format "\n  Expected: %s" (show_expr e));
-       print_endline (format "    Actual: %s\n" (show_expr r)))
-    else ()
-  with Failure msg ->
-    print_endline (bright_red " * " ^ bright_white "Error" ^ ": " ^ msg);
-    flush stdout
-
-let (!!) s =
-  try
-    print_endline (format "%s %s" (bright_blue "->") (white s));
-    let r = parse_string s in
-    let m = bright_red "✗ " in
-    print_endline (format "%s %s %s %s" m (show_expr r) "::" (red "Expr"));
-    print_endline (bright_red " * " ^ bright_white "Error: expression expected to fail.");
-  with Failure msg ->
-    let m = (bright_green "✓ ") in
-    print_endline (format "%s %s" m (bright_white ("Expected failure" ^ ": " ^ msg)));
-    flush stdout
 
 (* -- Helper Definitions -- *)
 
@@ -70,31 +27,38 @@ let def x y     = Term (Symbol "=", [x; y])
 (* -- Test Groups -- *)
 
 let test_literals () =
+  print $ bright_white "-- Literals";
   "x"                   == x;
-  "5"                   == int 5
+  "5"                   == int 5;
+  print_newline ()
+
 
 let test_arithmetic_operators () =
+  print $ bright_white "-- Arithmetic Operators";
   "x + y"      == (add x y);
   "-x"         == (neg x);
   "x + y * z"  == (add x (mul y z));
-  "x + y * -z" == (add x (mul y (neg z)))
+  "x + y * -z" == (add x (mul y (neg z)));
+  print_newline ()
+
 
 let test_function_application () =
+  print $ bright_white "-- Function Application";
   "f x y"      == (f x y);
   "f x y + z"  == (add (f x y) z);
-  !! "x f "
+  !! "x f ";
+  print_newline ()
 
-let test_block () =
-  "{}"     == unit;
-  "{\n}"   == unit;
-  "{x}"    == x
 
 let test_conditional () =
+  print $ bright_white "-- Conditional";
   "if x then 1 else 0"   == Term (Symbol "if:then:else", [x; int 1; int 0]);
-  "if\nx then 1 else 0"  == Term (Symbol "if:then:else", [x; int 1; int 0])
+  "if\nx then 1 else 0"  == Term (Symbol "if:then:else", [x; int 1; int 0]);
+  print_newline ()
 
 
 let test_groups () =
+  print $ bright_white "-- Groups";
   "(x)"                 == x;
   "(((x)))"             == x;
   "(x + y)"             == (add x y);
@@ -102,67 +66,61 @@ let test_groups () =
   "(x + (y + y)) * z"   == (mul (add x (add y y)) z);
   "(f x y)"             == (f x y);
   !! "(";
-  !! "(x))"
+  !! "(x))";
+  print_newline ()
+
+let test_blocks () =
+  print $ bright_white "-- Blocks";
+  "{2}"           == (int 2);
+  "{2 + 2}"       == (add (int 2) (int 2));
+  "f x {2 + 2}"   == (f x (add (int 2) (int 2)));
+  "{x\ny\nz}"     == (seq x (seq y z));
+  !! "{}";
+  !! "{\n}";
+  print_newline ()
+
+let test_sequences () =
+  print $ bright_white "-- Sequences";
+  "x; y; z"          == (seq x (seq y z));
+  "x + y; z"         == (seq (add x y) z);
+  "x = f y z; 5"     == (def x (seq (f y z) (int 5)));
+  print_newline ()
+
+let test_newline_handling () =
+  print $ bright_white "-- Newline Handling";
+  "f x y\nz"    == (seq (f x y) z);
+  "x\ny"        == (seq x y);
+  "x +\ny"      == (add x y);
+  "x\n- y"      == (seq x (neg y));
+  "f x y\nz"    == (seq (f x y) z);
+  "(x +\ny)"    == (add x y);
+  "(f x\ny)"    == (f x y);
+  "(f\nx y)"    == (f x y);
+  print_newline ()
+
+let test_edge_cases () =
+  "1 + 1\n"            == (add (int 1) (int 1)) ;
+  "{1 + 1\n}"          == (add (int 1) (int 1));
+  "{-1}"               == (neg (int 1));
+  "{f x y\n}"          == (f x y);
+  "{\nf x y\nx\ny\nz}" == (seq (f x y) (seq x (seq y z)));
+  "(x\n)"              == x;
+  "(\nx\n)"            == x;
+  !! ")";
+  !! "(";
+  !! "(x + y) 3";
+  print_newline ()
 
 let run () =
   test_literals ();
   test_arithmetic_operators ();
   test_function_application ();
-  test_groups ()
+  test_sequences ();
+  test_newline_handling ();
+  test_groups ();
+  test_blocks ();
+  test_edge_cases ();
 
-  (* ~> "(f *)
-  (*        x y))"; *)
-  (* ~> "f *)
-  (*        x y" *)
+  ()
 
 
-
-let other_tests () =
-
-  (* End-of-line handling. *)
-  "x\ny"                == (seq x y);
-  "x +\ny"              == (add x y);
-  "x\n- y"              == (seq x (term "-" [y]));
-
-  (* End-of-line handling inside expression groups. *)
-  "(x +\ny)"            == (add x y);
-  "(f x\ny)"            == (f x y);
-
-  (* Expression blocks. *)
-  "{2}"                 == (int 2);
-  "{2 + 2}"             == (add (int 2) (int 2));
-  "f x {2 + 2}"         == (f x (add (int 2) (int 2)));
-
-  (* Other tests. *)
-  "x ? 1 : 0"           == (term "?" [x; int 1; int 0]);
-  "if x then 1 else 0"  == (term "if" [x; int 1; int 0]);
-  "x; y; z"             == (seq x (seq y z));
-  "x + y; z"            == (seq (add x y) z);
-  "x = f y z; 5"        == (def x (seq (f y z) (int 5)));
-
-~>
-"{1 + 1
-}";
-
-~>
-"{-1}";
-
-~>
-"{f x
-}";
-
-~>
-"(f x)";
-
-~>
-"{
-f
-a
-b
-c}";
-
-~>
-"(f
-)";
-
-~> "(x + y) 3"

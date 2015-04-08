@@ -5,7 +5,7 @@ module Scope = Map.Make(String)
 
 type 'a t = ('a Scope.t list * 'a)
 
-let init ~default = ([Scope.empty], default)
+let init ~main ~default = ([main], default)
 
 let show_scope s : string =
   "[%s]" % (join ", " (List.map fst (Scope.bindings s)))
@@ -28,3 +28,8 @@ let rec lookup (env, default) name =
 
 let new_scope (env, default) =
   (Scope.empty::env, default)
+
+module Infix = struct
+  let ( +> ) scope (name, handler) = Scope.add name handler scope
+end
+
