@@ -27,35 +27,45 @@ let const x = fun _ -> x
 let ignore : 'a -> unit = fun _ -> ()
 
 let exclusive_option_exn x y =
-	match (x, y) with
-	| Some v, None -> v
-	| None, Some v -> v
-	| None, None -> failwith "At least one of two options must be defined."
-	| Some _, Some _ -> failwith "Both options are defined."
+  match (x, y) with
+  | Some v, None -> v
+  | None, Some v -> v
+  | None, None -> failwith "At least one of two options must be defined."
+  | Some _, Some _ -> failwith "Both options are defined."
 
 
 let defined_option = function
-	| Some _ -> true
-	| None -> false
+  | Some _ -> true
+  | None -> false
 
 
 let (=>) = (|>)
-let ($) = (@@)
+let (append) = (@)
+let (@) = (@@)
 
 
 let rec repeat_until fn limit =
-	let x = fn () in
-	if (x = limit)
-		then []
-		else [x] @ repeat_until fn limit
+  let x = fn () in
+  if (x = limit)
+    then []
+    else append [x] (repeat_until fn limit)
 
 
 let rec repeat_fn_to fn limit =
-	let x = fn () in
-	if (x = limit)
-		then []
-		else [x] @ repeat_fn_to fn limit
+  let x = fn () in
+  if (x = limit)
+    then []
+    else append [x] (repeat_fn_to fn limit)
 
+let rec repeatedly n f =
+  if n = 0
+    then []
+    else (f ()) :: (repeatedly (n - 1) f)
+
+let rec range ?(start=0) ?(step=1) stop =
+  if start >= stop
+    then []
+    else start :: (range ~start: (start + step) stop ~step)
 
 let print = print_endline
 let p = print_endline
@@ -83,20 +93,20 @@ let map = List.map
 let curry f (x, y) = f x y
 
 type 'a result =
-	| Ok of 'a
-	| Error of string
+  | Ok of 'a
+  | Error of string
 
 let color_format color =
-	format "\027[%dm%s\027[0m"
-	   (match color with
-	    | `Black   -> 30
-	    | `Red     -> 31
-	    | `Green   -> 32
-	    | `Yellow  -> 33
-	    | `Blue    -> 34
-	    | `Magenta -> 35
-	    | `Cyan    -> 36
-	    | `White   -> 37)
+  format "\027[%dm%s\027[0m"
+     (match color with
+      | `Black   -> 30
+      | `Red     -> 31
+      | `Green   -> 32
+      | `Yellow  -> 33
+      | `Blue    -> 34
+      | `Magenta -> 35
+      | `Cyan    -> 36
+      | `White   -> 37)
 
 let blue = color_format `Blue
 let red = color_format `Red
@@ -122,7 +132,7 @@ let blink x  = "\027[5m" ^ x ^ "\027[0m"
 
 let log x = print ("-- " ^ x)
 
-let debug = true
+let debug = false
 
 let trace x =
   if debug then print ((cyan " > ") ^ x)
@@ -135,24 +145,6 @@ let warn x =
            else ()
 
 let fail = failwith
-
-let (||) maybe default =
-  match maybe with
-  | Some v -> v
-  | None -> default
-
-let if_some fn = function
-  | None -> ()
-  | Some x -> fn x
-
-let pipe_some fn = function
-  | None -> None
-  | Some x -> fn x
-
-let map_some fn = function
-  | None -> None
-  | Some x -> Some (fn x)
-
 
 module Lazy_stream = struct
   type 'a t = Cons of 'a * 'a t Lazy.t | Nil
@@ -183,4 +175,40 @@ let (<~>) x y = match compare x y with
   | -1 -> `LT
   |  _ -> raise (Failure "Impossible comparison result.")
 
+module Option = struct
+  exception No_value of string
+
+  let value x ~default =
+    match x with
+    | Some s -> s
+    | None   -> default
+
+  let value_exn x =
+    match x with
+    | Some x -> x
+    | None   -> raise (No_value "Option has no value.")
+
+  let map x ~f =
+    match x with
+    | Some s -> Some (f s)
+    | None   -> None
+
+  let value_map x ~default ~f =
+    match x with
+    | Some s -> f s
+    | None   -> default
+
+  let return s = Some s
+
+  let bind x ~f =
+    match x with
+    | Some s -> f s
+    | None   -> None
+
+  let is_some = function
+    | Some _ -> true
+    | None   -> false
+
+  let (>>=) x f = bind x ~f
+end
 

@@ -3,110 +3,108 @@ open Foundation
 open Lexer
 open Syntax
 open Parser
+open Grammar
 
-type state = { lexer   : lexer;
-               grammar : (token -> handler) Grammar.t;
-               handler : handler }
+type state = {
+    lexer   : lexer;
+    token   : token;
+    grammar : (expr, (expr, state) parser) grammar;
+    rule    : (expr, (expr, state) parser) rule;
+}
 
-and handler = { token : token;
-                lbp   : int;
-                nud   : (expr, state) parser option;
-                led   : (expr -> (expr, state) parser) option;
-                scope : (token -> handler) Grammar.Scope.t option }
-
-(* -- Error Handling -- *)
-
-let led_error =
-  get >>= fun { handler } ->
-    error $ "%s cannot be used in infix position." % (show_token handler.token)
+let led_error : (expr, state) parser =
+  get >>= fun { token } ->
+    error @ "%s cannot be used in led position." % (show_token token)
 
 let nud_error =
-  get >>= fun { handler } ->
-    error $ "%s cannot be used in prefix position." % (show_token handler.token)
+  get >>= fun { token } ->
+    error @ "%s cannot be used in nud position." % (show_token token)
 
 let (<?>) p label = fun s ->
     match p s with
-    | Error _ -> Error ("%s found but %s expected" %%
-                  (show_token s.handler.token, label))
-    | ok -> ok
+      | Error _ ->
+        Error (match () with
+               | () when s.token.value = Sym "EOF" ->
+                 (~% "%s unexpected end of file while reading %s"
+                       (show_location s.token.location) label)
+               | () when label = (show_literal (Sym "EOF")) ->
+                 (~% "parsing stopped at %s" (show_token s.token))
+               | () -> (~% "expected %s but %s found"
+                       label (show_token s.token)))
+      | ok -> ok
 
 let advance = get >>= fun s ->
   let token = read_token s.lexer in
-  let name = string_of_literal token.value in
-  let binding = Grammar.lookup s.grammar name in
-  void $ ~% "advance: token = %s, scope = %s" (show_token token) (Grammar.show s.grammar);
-  let handler = binding token in
-  put { s with handler }
+  let rule = lookup_rule s.grammar token in
+  put { s with rule; token }
 
 let inspect_token =
-  inspect (fun {handler} ->
-    print $ "token: %s" % (show_literal handler.token.value))
-
-let inspect_scope =
-  inspect (fun {grammar; handler} ->
-    match grammar with
-    | (scope::env, default) ->
-      print $ "scope(%s): %s" %% (show_literal handler.token.value, Grammar.show_scope scope)
-    | ([], _) -> raise (Failure "empty grammar"))
+  inspect (fun { token } ->
+    print @ "token: %s" % (show_literal token.value))
 
 let inspect_grammar =
-  inspect (fun {grammar; handler} ->
-    print $ "grammar(%s) = %s" %% (show_token handler.token, Grammar.show grammar))
+  inspect (fun { grammar = g; token = t } ->
+    print @ "grammar(%s) = %s" %% (show_token t, show_grammar g))
 
 let expect x =
-  satisfy (fun s -> s.handler.token.value = x) <?> (show_literal x)
+  satisfy (fun { token } -> token.value = x) <?> (show_literal x)
 
 let consume x =
   expect x >> advance
 
 let push_scope scope =
   get >>= fun s ->
-    let (env, default) = s.grammar in
-    put { s with grammar = (scope::env, default) }
+    put { s with grammar = { s.grammar with env = scope::s.grammar.env } }
 
 let pop_scope =
   get >>= fun s ->
-    match s.grammar with
-    | (_::env, default) -> put { s with grammar = (env, default) }
-    | ([], _) -> raise (Failure "cannot pop scope on empty grammar")
+    match s.grammar.env with
+    | _::env -> put { s with grammar = { s.grammar with env = env } }
+    | [] -> raise (Failure "cannot pop scope on empty grammar")
 
 let with_scope s p =
   match s with
   | None -> p
   | Some s' -> push_scope s' >> p
 
-let rec parse_next rbp x =
-  get >>= fun { handler } ->
-    void (~% "parse_next: token = %s, x = %s, lbp = %d, rbp = %d"
-    (show_literal handler.token.value) (show_expr x) handler.lbp rbp);
-  if handler.lbp > rbp then
-      match handler.led with
-      | Some led -> advance >> led x >>= parse_next rbp
-      | None -> led_error
+(* Parses a nud sequence. Requires the first symbol to have only nud. *)
+let parse_nud =
+  get >>= fun { rule; grammar } ->
+    trace (~% "parse_nud: rule.sym = %s" (show_literal rule.sym));
+    match rule.led with
+    | None ->
+      begin match rule.nud with
+        | Some nud -> nud
+        | None -> Option.value (grammar.default rule.sym).nud ~default:nud_error
+      end
+    | Some led -> nud_error
+
+let rec parse_led rbp x =
+  get >>= fun { rule; grammar } ->
+    trace (~% "parse_led: sym = %s, left = %s, lbp = %d, rbp = %d"
+              (show_literal rule.sym) (show_expr x) rule.lbp rbp);
+    if rule.lbp > rbp then
+      let led = match rule.led with
+        | Some led -> led
+        | None -> fun x -> led_error in
+        (* | None -> Option.value (grammar.default rule.sym).led *)
+        (*             ~default:(fun x -> led_error) in *)
+      led x >>= parse_led rbp
     else return x
 
-let parse_nud rbp =
-  get >>= fun { handler } ->
-  match handler.led with
-  | None -> (match handler.nud with
-    | Some nud -> advance >> nud
-    | None -> nud_error)
-  | Some _ -> nud_error
-
 let parse_expr rbp =
-  get >>= fun { handler } ->
-    void ("parse_expr: token = %s, rbp = %d" %% (show_literal handler.token.value, rbp));
-    match handler.nud with
-    | Some nud -> advance >> nud >>= parse_next rbp
-    | None -> nud_error
+  get >>= fun { rule; grammar } ->
+    trace (~% "parse_exp: rule.sym = %s" (show_literal rule.sym));
+    let nud = match rule.nud with
+      | Some nud -> nud
+      | None -> Option.value (grammar.default rule.sym).nud ~default:nud_error in
+    nud >>= parse_led rbp
 
 let init ~lexer ~grammar () =
   let token = read_token lexer in
-  let name = string_of_literal token.value in
-  let state = { lexer;
-                grammar;
-                handler = (Grammar.lookup grammar name) token } in
-  match run (parse_expr 0 << expect (Symbol "EOF")) state with
+  let rule = lookup_rule grammar token in
+  let s = { lexer; token; grammar; rule } in
+  match run (parse_expr 0 << expect (Sym "EOF")) s with
   | Ok (value, _) -> value
   | Error msg -> raise (Failure msg)
 

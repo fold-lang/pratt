@@ -18,6 +18,11 @@ let (>>=) p f = fun s ->
     | Ok (x, s') -> (f x) s'
     | Error msg  -> Error msg
 
+let (>>|) p f = fun s ->
+    match p s with
+    | Ok (x, s') -> Ok ((f x), s')
+    | Error msg  -> Error msg
+
 let (>>) p q = p >>= fun _ -> q
 let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
 
@@ -49,3 +54,4 @@ let exactly x  = satisfy ((=) x)
 let one_of  xs = satisfy (fun x -> List.mem x xs)
 let none_of xs = satisfy (fun x -> not (List.mem x xs))
 let range s e  = satisfy (fun x -> s <= x && x <= e)
+

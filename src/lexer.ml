@@ -4,22 +4,25 @@ open Foundation
 (* -- Literal Type -- *)
 
 type literal =
-    | Symbol of string
-    | String of string
+    | Sym of string
+    | Str of string
+    | Char of char
     | Float of float
-    | Integer of int
+    | Int of int
 
 let show_literal = function
-    | Symbol  x -> "`%s" % (bright_white x)
-    | String  x -> format "\"%s\"" x
-    | Float   x -> format "%f" x
-    | Integer x -> yellow ("%d" % x)
+    | Sym   x -> "`%s" % (bright_white x)
+    | Str   x -> format "\"%s\"" x
+    | Float x -> format "%f" x
+    | Int x   -> yellow ("%d" % x)
+    | Char x  -> yellow ("'%c'" % x)
 
 let string_of_literal = function
-    | Symbol  x -> format "`%s" x
-    | String  x -> format "\"%s\"" x
+    | Sym  x -> format "`%s" x
+    | Str  x -> format "\"%s\"" x
     | Float   x -> format "%f" x
-    | Integer x -> format "%d" x
+    | Int x -> format "%d" x
+    | Char x  -> format "'%c'" x
 
 (* -- Location -- *)
 
@@ -94,8 +97,8 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
                                Star ('0'..'9' | '_')) ]
 let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
 let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~" ]
-let delimeter_char  = [%sedlex.regexp? Chars "(){}[]`,;\"'"]
-let symbol_literal  = [%sedlex.regexp? identifier_char | operator_char | delimeter_char]
+let delimeter_char  = [%sedlex.regexp? Chars "{}[]`,;\"'"]
+let symbol_literal  = [%sedlex.regexp? operator_char | delimeter_char]
 let comment         = [%sedlex.regexp? "--", Star (Compl '\n')]
 let white_space     = [%sedlex.regexp? Plus (' ' | '\t')]
 
@@ -140,21 +143,22 @@ let lexer_error lexer msg =
 let rec read_literal ({lexbuf} as lexer) =
   match%sedlex lexbuf with
   | Plus (white_space | comment) -> read_literal lexer
-  | int_literal    -> Integer (int_of_string (current_lexeme lexer))
+  | int_literal    -> Int (int_of_string (current_lexeme lexer))
   | float_literal  -> Float (float_of_string (current_lexeme lexer))
-  | '(', Star ((white_space | '\n') | comment), ')' -> Symbol "()"
+  | '(', Star ((white_space | '\n') | comment), ')' -> Sym "()"
   | '('            -> lexer.group_counter <- (lexer.group_counter + 1);
-                      Symbol (current_lexeme lexer)
+                      Sym (current_lexeme lexer)
   | ')'            -> lexer.group_counter <- (lexer.group_counter - 1);
                       (match lexer.group_counter <~> 0 with
-                       | `EQ | `GT -> Symbol (current_lexeme lexer)
+                       | `EQ | `GT -> Sym (current_lexeme lexer)
                        | `LT -> lexer_error lexer "unbalanced parenthesis")
   | '\n'           -> (match lexer.group_counter <~> 0 with
-                       | `EQ -> Symbol "EOL"
+                       | `EQ -> Sym "EOL"
                        | `GT -> read_literal lexer
                        | `LT -> lexer_error lexer "unbalanced parenthesis")
-  | symbol_literal -> Symbol (current_lexeme lexer)
-  | eof            -> Symbol "EOF"
+  | symbol_literal -> Sym (current_lexeme lexer)
+  | Plus identifier_char -> Sym (current_lexeme lexer)
+  | eof            -> Sym "EOF"
   | any            -> lexer_error lexer "illegal character"
   | _              -> assert false
 let read_token lexer =

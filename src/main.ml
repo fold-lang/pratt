@@ -21,16 +21,17 @@ blue ("  ▗▐▝                      \n") ^
 
 
 let rec eval env = function
-    | Atom lit -> begin match lit with
-        | Symbol x -> assert false
-        | String x -> assert false
+    | Lit lit -> begin match lit with
+        | Sym x -> assert false
+        | Char x -> assert false
+        | Str x -> assert false
         | Float x -> assert false
-        | Integer x -> x
+        | Int x -> x
     end
-    | Term (Symbol "+", [e1; e2]) -> (eval env e1) + (eval env e2)
-    | Term (Symbol "-", [e1; e2]) -> (eval env e1) - (eval env e2)
-    | Term (Symbol "/", [e1; e2]) -> (eval env e1) / (eval env e2)
-    | Term (Symbol "*", [e1; e2]) -> (eval env e1) * (eval env e2)
+    | App (Lit (Sym "+"), [e1; e2]) -> (eval env e1) + (eval env e2)
+    | App (Lit (Sym "-"), [e1; e2]) -> (eval env e1) - (eval env e2)
+    | App (Lit (Sym "/"), [e1; e2]) -> (eval env e1) / (eval env e2)
+    | App (Lit (Sym "*"), [e1; e2]) -> (eval env e1) * (eval env e2)
     | _ -> assert false
 
 let loop () =

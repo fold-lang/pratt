@@ -4,7 +4,11 @@ Core Syntax
 
 ## End-of-line Parsing
 
-The end-of-line token (`\n`) is associated to two parsing rules: on the one hand, it denotes the termination of the last expression on the line, and on the other it may give continuation to the last expression, if the next expression has greater indentation than the current one.
+The end-of-line token (`\n`) is associated to two parsing rules:
+
+- on the one hand, it denotes the termination of the last expression on the line,
+- and on the other it may give continuation to the last expression, if the next
+  expression has greater indentation than the current one.
 
 Let's see two examples that show the described rules applied.
 

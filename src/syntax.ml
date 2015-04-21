@@ -2,23 +2,22 @@
 open Foundation
 open Lexer
 
-type expr = Atom of literal
-          | Term of literal * expr list
+type expr =
+  | Lit of literal           (* Basic literal values: sym, str, int, etc. *)
+  | Seq of expr list         (* A sequence of expressions: `a b c d`.     *)
+  | App of expr * expr list  (* Function applicaton: `f x`, `(f x) y`.    *)
 
-let unit = Atom (Symbol "()")
+let unit = Lit (Sym "()")
 
-let rand_expr = Atom (Integer 42)
+let rand_expr = Lit (Int 42)
 
 let rec show_expr = function
-    | Atom x -> show_literal x
-    | Term (f, args) -> format "(%s : %s)" (show_literal f) (join " " (map show_expr args))
+  | Lit x -> show_literal x
+  | App (f, xs) -> format "(app %s %s)" (show_expr f) (join " " (map show_expr xs))
+  | Seq xs -> format "(seq %s)" (join " " (map show_expr xs))
 
-
-let append_expr x y =
-  x => function | Term (head, args) -> Term (head, args @ [y])
-                | _ -> raise (Failure "expression accepts no arguments")
-
-let append_expr_list x ys =
-  x => function | Term (head, args) -> Term (head, args @ ys)
-                | _ -> raise (Failure "expression accepts no arguments")
+let append_expr x y = match x with
+  | App (f, xs) -> App (f, append xs [y])
+  | Seq xs      -> Seq    (append xs [y])
+  | Lit _       -> Seq [x; y]
 
