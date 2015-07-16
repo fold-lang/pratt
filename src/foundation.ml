@@ -72,12 +72,7 @@ let p = print_endline
 
 let printf = Printf.printf
 
-let format = Printf.sprintf
-
-let (%) fmt x = Printf.sprintf fmt x
-let (%%) fmt (x, y) = Printf.sprintf fmt x y
-let (%%%) fmt (x, y, z) = Printf.sprintf fmt x y z
-let (~%) = Printf.sprintf
+let fmt = Printf.sprintf
 
 let first (x, _) = x
 let second (_, y) = y
@@ -97,7 +92,7 @@ type 'a result =
   | Error of string
 
 let color_format color =
-  format "\027[%dm%s\027[0m"
+  fmt "\027[%dm%s\027[0m"
      (match color with
       | `Black   -> 30
       | `Red     -> 31
@@ -115,15 +110,15 @@ let magenta = color_format `Magenta
 let cyan = color_format `Cyan
 let white = color_format `White
 let green = color_format `Green
-let bright_white x = format "\027[1;37m%s\027[0m" x
-let bright_blue x = format "\027[1;34m%s\027[0m" x
-let bright_magenta x = format "\027[1;35m%s\027[0m" x
-let violet x = format "\027[0;34m%s\027[0m" x
+let bright_white x = fmt "\027[1;37m%s\027[0m" x
+let bright_blue x = fmt "\027[1;34m%s\027[0m" x
+let bright_magenta x = fmt "\027[1;35m%s\027[0m" x
+let violet x = fmt "\027[0;34m%s\027[0m" x
 (* let violet x = format "\027[0;49;34m%s\027[0m" x *)
-let bright_red x = format "\027[1;31m%s\027[0m" x
-let bright_green x = format "\027[1;32m%s\027[0m" x
-let start_bright_white = format "\027[1;37m"
-let start_white = format "\027[37m"
+let bright_red x = fmt "\027[1;31m%s\027[0m" x
+let bright_green x = fmt "\027[1;32m%s\027[0m" x
+let start_bright_white = fmt "\027[1;37m"
+let start_white = fmt "\027[37m"
 let end_color = "\027[0m"
 let italic x  = "\027[3m" ^ x ^ "\027[0m"
 let underline x  = "\027[4m" ^ x ^ "\027[0m"
@@ -175,40 +170,53 @@ let (<~>) x y = match compare x y with
   | -1 -> `LT
   |  _ -> raise (Failure "Impossible comparison result.")
 
-module Option = struct
+module Opt = struct
   exception No_value of string
 
-  let value x ~default =
-    match x with
+  let value self ~default =
+    match self with
     | Some s -> s
     | None   -> default
 
-  let value_exn x =
-    match x with
-    | Some x -> x
-    | None   -> raise (No_value "Option has no value.")
+  let value_exn ?(msg = "option has no value") self =
+    match self with
+    | Some self -> self
+    | None      -> raise (No_value msg)
 
-  let map x ~f =
-    match x with
-    | Some s -> Some (f s)
+  let map self ~f =
+    match self with
+    | Some self -> Some (f self)
     | None   -> None
 
-  let value_map x ~default ~f =
-    match x with
+  let value_map self ~default ~f =
+    match self with
     | Some s -> f s
     | None   -> default
 
-  let return s = Some s
+  let return x = Some x
 
-  let bind x ~f =
-    match x with
-    | Some s -> f s
+  let bind self ~f =
+    match self with
+    | Some x -> f x
     | None   -> None
 
   let is_some = function
     | Some _ -> true
     | None   -> false
 
-  let (>>=) x f = bind x ~f
+  let is_none = function
+    | Some _ -> false
+    | None   -> true
+
+  let (>>=) self f = bind self ~f
+
+  let (!!) self = value_exn self
+
+  let (||) self default = value self ~default
 end
+
+let (!!) = Opt.(!!)
+let (||) = Opt.(||)
+
+
 

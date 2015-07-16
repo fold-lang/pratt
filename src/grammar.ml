@@ -6,7 +6,7 @@ open Lexer
 type ('e, 'p) rule = {
   sym : literal;
   lbp : int;
-  led : ('e -> 'p) option; 
+  led : ('e -> 'p) option;
   nud : 'p option;
 }
 
@@ -21,7 +21,7 @@ module Scope = struct
 
   type ('e, 'p) t = {
     lbp : int Data.t;
-    led : ('e -> 'p) Data.t; 
+    led : ('e -> 'p) Data.t;
     nud : 'p Data.t;
   }
 
@@ -32,7 +32,7 @@ module Scope = struct
   }
 
   let show scope =
-    ~% "{ lbp = [%s];\n  led  = [%s];\n  prefix = [%s] }"
+    fmt "{ lbp = [%s];\n  led  = [%s];\n  prefix = [%s] }"
      (join ", " (List.map fst (Data.bindings scope.lbp)))
      (join ", " (List.map fst (Data.bindings scope.led)))
      (join ", " (List.map fst (Data.bindings scope.nud)))
@@ -60,12 +60,12 @@ module Scope = struct
     let scope'1 = { scope with lbp = Data.add name rule.lbp scope.lbp } in
     let scope'2 = match rule.led with
       | Some led -> (if Data.mem name scope.led then
-                       print @ "Redefinition of led symbol %s" % name);
+                       print @ fmt "Redefinition of led symbol %s" name);
         { scope'1 with led = Data.add name led scope.led }
       | None -> scope'1 in
     let scope'3 = match rule.nud with
       | Some nud -> (if Data.mem name scope.nud then
-                       print @ "Redefinition of nud symbol %s" % name);
+                       print @ fmt "Redefinition of nud symbol %s" name);
         { scope'2 with nud = Data.add name nud scope.nud }
       | None -> scope'2 in
     scope'3
@@ -73,7 +73,7 @@ module Scope = struct
   let define_led rule scope : ('e, 'p) t =
     let name = string_of_literal rule.sym in
     (if Data.mem name scope.led then
-       print @ "Redefinition of led symbol %s" % name);
+       print @ fmt "Redefinition of led symbol %s" name);
     match rule.led with
     | Some led -> { scope with lbp = Data.add name rule.lbp scope.lbp;
                                led = Data.add name led      scope.led }
@@ -82,7 +82,7 @@ module Scope = struct
   let define_nud rule scope : ('e, 'p) t =
     let name = string_of_literal rule.sym in
     (if Data.mem name scope.nud then
-       print @ "Redefinition of nud symbol %s" % name);
+       print @ fmt "Redefinition of nud symbol %s" name);
     match rule.nud with
     | Some nud -> { scope with nud = Data.add name nud scope.nud }
     | None -> raise (Invalid_argument "rule has no nud code")
@@ -125,7 +125,7 @@ let rec lookup_lbp g name =
 let lookup_rule g t =
   let sym  = t.value in
   let name = string_of_literal sym in
-  let lbp = Option.value (lookup_lbp g name) ~default:(g.default sym).lbp in
+  let lbp = lookup_lbp g name || (g.default sym).lbp in
   let led = lookup_led g name in
   let nud = lookup_nud g name in
   (* let led = Some (match lookup_led g name with *)

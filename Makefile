@@ -45,5 +45,5 @@ run: build
 	./main.byte
 
 watch:
-	ls src/*.ml | entr -cr make run
+	ls src/*.ml | entr -c make run
 

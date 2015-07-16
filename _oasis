@@ -13,6 +13,11 @@ Executable fold
   MainIs:         main.ml
   BuildDepends:   fold
 
+Executable minimal
+  Path:           src/
+  MainIs:         minimal.ml
+  BuildDepends:   fold
+
 Library fold
   Path:           src/
   FindlibName:    fold

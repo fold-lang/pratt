@@ -2,22 +2,15 @@
 open Foundation
 open Lexer
 
-type expr =
-  | Lit of literal           (* Basic literal values: sym, str, int, etc. *)
-  | Seq of expr list         (* A sequence of expressions: `a b c d`.     *)
-  | App of expr * expr list  (* Function applicaton: `f x`, `(f x) y`.    *)
+type exp =
+  | Atom of literal          (* Basic atomic values: sym, str, int, etc. *)
+  | List of exp list         (* A sequence of expressions: `a b c d`.    *)
 
-let unit = Lit (Sym "()")
+let unit = Atom (Sym "()")
 
-let rand_expr = Lit (Int 42)
+let rand_exp = Atom (Int 42)
 
-let rec show_expr = function
-  | Lit x -> show_literal x
-  | App (f, xs) -> format "(app %s %s)" (show_expr f) (join " " (map show_expr xs))
-  | Seq xs -> format "(seq %s)" (join " " (map show_expr xs))
-
-let append_expr x y = match x with
-  | App (f, xs) -> App (f, append xs [y])
-  | Seq xs      -> Seq    (append xs [y])
-  | Lit _       -> Seq [x; y]
+let rec show_exp = function
+  | Atom x -> show_literal x
+  | List xs -> fmt "(%s)" (join " " (map show_exp xs))
 

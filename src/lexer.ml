@@ -11,18 +11,18 @@ type literal =
     | Int of int
 
 let show_literal = function
-    | Sym   x -> "`%s" % (bright_white x)
-    | Str   x -> format "\"%s\"" x
-    | Float x -> format "%f" x
-    | Int x   -> yellow ("%d" % x)
-    | Char x  -> yellow ("'%c'" % x)
+    | Sym   x -> fmt "`%s" (bright_white x)
+    | Str   x -> fmt "\"%s\"" x
+    | Float x -> fmt "%f" x
+    | Int x   -> yellow (fmt "%d" x)
+    | Char x  -> yellow (fmt "'%c'" x)
 
 let string_of_literal = function
-    | Sym  x -> format "`%s" x
-    | Str  x -> format "\"%s\"" x
-    | Float   x -> format "%f" x
-    | Int x -> format "%d" x
-    | Char x  -> format "'%c'" x
+    | Sym  x  -> fmt "`%s" x
+    | Str  x  -> fmt "\"%s\"" x
+    | Float x -> fmt "%f" x
+    | Int x   -> fmt "%d" x
+    | Char x  -> fmt "'%c'" x
 
 (* -- Location -- *)
 
@@ -37,7 +37,7 @@ let empty_location =
       length   = 0 }
 
 let show_location x =
-    format "%d/%d" x.line x.column
+    fmt "%d/%d" x.line x.column
 
 (* -- Token -- *)
 module Separation = struct
@@ -76,7 +76,7 @@ type token =
     location          : location }
 
 let show_token tok =
-    format "%s: %s" (show_location tok.location) (show_literal tok.value)
+    fmt "%s: %s" (show_location tok.location) (show_literal tok.value)
 
 
 (* -- Lexer -- *)
@@ -96,7 +96,7 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
                           Opt (Chars "eE", Opt (Chars "+-"), '0'..'9',
                                Star ('0'..'9' | '_')) ]
 let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
-let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~" ]
+let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~#" ]
 let delimeter_char  = [%sedlex.regexp? Chars "{}[]`,;\"'"]
 let symbol_literal  = [%sedlex.regexp? operator_char | delimeter_char]
 let comment         = [%sedlex.regexp? "--", Star (Compl '\n')]
@@ -126,9 +126,10 @@ let current_location lexer =
     length = Sedlexing.lexeme_length lexer.lexbuf }
 
 let lexer_error lexer msg =
-  raise (Failure ("%s: %s: '%s'." %%%
-                  ((show_location (current_location lexer)), msg,
-                  (current_lexeme lexer))))
+  raise (Failure (fmt "%s: %s: '%s'."
+                    (show_location (current_location lexer))
+                    msg
+                    (current_lexeme lexer)))
 
 (* let rec read_separator ({ lexbuf } as lexer) current = *)
 (*   match%sedlex lexbuf with *)
