@@ -104,7 +104,7 @@ let test_edge_cases () =
   "(\nx\n)"            == sym "x";
   ~>! "(x))";
   ~>! ")";
-  ~>! "(";
+  ~>! "("; (* TODO: Error msg should be more explicit. Check it. *)
   ~>! "";
   print_newline ()
 
@@ -116,7 +116,7 @@ let run () =
   test_groups ();
   test_newline_handling ();
   test_blocks ();
-  (* test_edge_cases (); *)
+  test_edge_cases ();
 
   ()
 
