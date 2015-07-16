@@ -76,7 +76,8 @@ let test_blocks () =
   "{2}"           == int 2;
   "{2 + 2}"       == List [sym "+"; int 2; int 2];
   "f x {2 + 2}"   == List [sym "f"; sym "x"; List [sym "+"; int 2; int 2]];
-  (* "{x\ny\nz}"     == (list x (list y z)); *)
+  "{x; y; z}"    == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
+  "{x\ny\nz}"    == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
   ~>! "{}";
   ~>! "{\n}";
   print_newline ()
@@ -114,7 +115,7 @@ let run () =
   test_statements ();
   test_groups ();
   test_newline_handling ();
-  (* test_blocks (); *)
+  test_blocks ();
   (* test_edge_cases (); *)
 
   ()

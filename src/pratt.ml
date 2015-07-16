@@ -119,12 +119,8 @@ let binary_infix_right sym lbp = rule sym ~lbp
         fun y -> return (List [Atom sym; x; y]))
 
 (* Try to read the next led operator, if defined, continue parsing, otherwise,
-   create a seq with the previous expression x and the next prefix y. *)
-(* let newline sym lbp = rule sym ~lbp: (lbp - 1) *)
-(*   ~led: (fun x -> advance >> parse_led (lbp - 1) x <|> (parse_nud (lbp - 1) >>= *)
-(*          fun y -> return (List [Atom (Sym ";"); x; y]))) *)
-(*   ~nud: (advance >> parse_nud (lbp - 1)) *)
-
+   create a seq with the previous expression x and the next prefix y.
+   Newline is right associative just like ';'. *)
 let newline sym = rule sym
     ~lbp:(10 - 1)
     ~led:begin fun x ->
@@ -133,7 +129,7 @@ let newline sym = rule sym
         if Opt.is_some rule.led then
           parse_led (10 - 1) x
         else
-          parse_nud (10 - 1) >>= fun y ->
+          parse_nud (10 - 2) >>= fun y ->
           return (List [Atom (Sym ";"); x; y])
     end
   ~nud:(consume sym >> parse_nud (10 - 1))
@@ -143,8 +139,8 @@ let newline sym = rule sym
    and must stop the parsing in `parse_led`. *)
 let delimiter sym = rule sym
     ~lbp:0
-    ~nud:nud_error
-    ~led:led_error
+    ~nud:nud_error (* Delimiter should not start and expression *)
+    ~led:led_error (* Illegal delimiter parsing. Delimiters must be consumed. *)
 
 (* Groups behave like regular symbols and thus their left binding power has to be high
    (close or equal to default) to allow list parsing in `parse_led`. *)
