@@ -38,13 +38,13 @@ let grammar =
   let rules =
     empty
     |> define (terminal     (Sym "EOF"))
-    |> define (newline      (Sym "EOL") 10)
+    (* |> define (newline      (Sym "EOL") 10) *)
     |> define (binary_infix (Sym "+")   50)
     |> define (binary_infix (Sym "-")   50)
-    |> define (unary_prefix (Sym "-")   70)
+    (* |> define (unary_prefix (Sym "-")   70) *)
     |> define (binary_infix (Sym "*")   60)
     |> define (binary_infix (Sym "/")   60)
-    |> define (closed       (Sym "(")
+    |> define (group        (Sym "(")
                             (Sym ")"))
   in
     grammar ~main:rules ~default
