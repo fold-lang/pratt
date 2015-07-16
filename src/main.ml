@@ -34,6 +34,6 @@ let loop () =
 let () =
     print (end_color ^ "\n" ^ fold_logo ^ "\n");
     Tests.run ();
-    (* loop (); *)
+    loop ();
     ()
 

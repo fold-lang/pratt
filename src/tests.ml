@@ -81,17 +81,17 @@ let test_blocks () =
   ~>! "{\n}";
   print_newline ()
 
-(* let test_newline_handling () = *)
-(*   print @ bright_magenta "-- Newline Handling"; *)
-(*   "f x y\nz"    == (list (f x y) z); *)
-(*   "x\ny"        == (list x y); *)
-(*   "x +\ny"      == (add x y); *)
-(*   "x\n- y"      == (list x (neg y)); *)
-(*   "f x y\nz"    == (list (f x y) z); *)
-(*   "(x +\ny)"    == (add x y); *)
-(*   "(f x\ny)"    == (f x y); *)
-(*   "(f\nx y)"    == (f x y); *)
-(*   print_newline () *)
+let test_newline_handling () =
+  print @ bright_magenta "-- Newline Handling";
+  "f x y\nz"    == List [sym ";"; List [sym "f"; sym "x"; sym "y"]; sym "z"];
+  "x\ny"        == List [sym ";"; sym "x"; sym "y"];
+  "x +\ny"      == List [sym "+"; sym "x"; sym "y"];
+  "x\n! y"      == List [sym ";"; sym "x"; List [sym "!"; sym "y"]]; (* `!` as prefix only op. *)
+  "f x y\nz"    == List [sym ";"; List [sym "f"; sym "x"; sym "y"]; sym "z"];
+  "(x +\ny)"    == List [sym "+"; sym "x"; sym "y"];
+  "(f x\ny)"    == List [sym "f"; sym "x"; sym "y"];
+  "(f\nx y)"    == List [sym "f"; sym "x"; sym "y"];
+  print_newline ()
 
 let test_edge_cases () =
   "1 + 1\n"            == List [sym "+"; int 1; int 1];
@@ -113,7 +113,7 @@ let run () =
   test_lists ();
   test_statements ();
   test_groups ();
-  (* test_newline_handling (); *)
+  test_newline_handling ();
   (* test_blocks (); *)
   (* test_edge_cases (); *)
 

@@ -19,17 +19,21 @@ let core_lang =
   let open Scope in
   let main_scope =
     empty
-    |> define (terminal           (Sym "EOF"))
+    |> define (delimiter          (Sym "EOF"))
+    |> define (newline            (Sym "EOL"))
+
     |> define (binary_infix       (Sym "+")   30)
     |> define (binary_infix       (Sym "-")   30)
     |> define (binary_infix       (Sym "#")   20)
     |> define (binary_infix       (Sym "*")   40)
     |> define (binary_infix       (Sym "=")   10)
+
     |> define (binary_infix_right (Sym ";")   20)
-    |> define (delimiter          (Sym ")"))
-    |> define (group              (Sym "(") (Sym ")"))
+
+    |> define (group (Sym "(") (Sym ")"))
+    |> define (group (Sym "{") (Sym "}"))
+
     (* |> define (newline            (Sym "EOL") 10) *)
-    (* |> define (closed (Sym "(") (Sym ")")) *)
     (* |> Scope.define (closed (Sym "{") (Sym "}")) *)
     (* |> Scope.define (unary_prefix       (Sym "f")   70) *)
     (* |> Scope.define (unary_prefix       (Sym "-")   70) *)

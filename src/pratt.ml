@@ -69,60 +69,21 @@ let with_scope s p =
   | None -> p
   | Some s' -> push_scope s' >> p
 
-(* Parses a nud sequence. Requires the first symbol to have only nud. *)
-(* let parse_nud = *)
-(*   get >>= fun { rule; grammar } -> *)
-(*     trace (fmt "parse_nud: rule.sym = %s" (show_literal rule.sym)); *)
-(*     if Opt.is_none rule.led *)
-(*     then rule.nud || Opt.value_exn (grammar.default rule.sym).nud *)
-(*     else nud_error *)
-
-let rec parse_led_orig rbp x =
-  get >>= fun { rule; grammar } ->
-    trace (fmt "parse_led: sym = %s, left = %s, lbp = %d, rbp = %d"
-              (show_literal rule.sym) (show_exp x) rule.lbp rbp);
-    if rule.lbp > rbp then
-      let led = rule.led || Opt.value_exn (grammar.default rule.sym).led in
-      led x >>= fun exp -> parse_led_orig rbp exp
-    else
-      return x
-
-(* let rec parse_led rbp x = *)
-(*   get >>= fun { rule; grammar } -> *)
-(*     trace (fmt "parse_led: sym = %s, left = %s, lbp = %d, rbp = %d" *)
-(*               (show_literal rule.sym) (show_exp x) rule.lbp rbp); *)
-(*     match rule.led with *)
-(*     | None -> *)
-(*       if rule.lbp > rbp then *)
-(*         let led = !! ((grammar.default rule.sym).led) in *)
-(*         led x >>= parse_led rbp *)
-(*       else return x *)
-(*     | Some led -> *)
-(*       if rule.lbp > rbp then *)
-(*         led x >>= parse_led rbp *)
-(*       else *)
-(*         return x *)
+(* TODO: Move the default rule lookup to Grammar. *)
 
 let rec parse_led rbp x =
   get >>= fun { rule; grammar } ->
     trace (fmt "parse_led: sym = %s, left = %s, lbp = %d, rbp = %d"
-              (show_literal rule.sym) (show_exp x) rule.lbp rbp);
-    match rule.led with
-    | None ->
-      if rule.lbp > rbp then
-        let led = !! ((grammar.default rule.sym).led) in
-        led x >>= parse_led rbp
-      else
-        return x
-    | Some led ->
-      if rule.lbp > rbp then
-        led x >>= parse_led rbp
-      else
-        return x
+             (show_literal rule.sym) (show_exp x) rule.lbp rbp);
+    let default_led = !! ((grammar.default rule.sym).led) in
+    let current_led = rule.led || default_led in
+    if rule.lbp > rbp
+      then current_led x >>= parse_led rbp
+      else return x
 
-let parse_exp rbp =
+let parse_nud rbp =
   get >>= fun { rule; grammar } ->
-    trace (fmt "parse_exp: rule.sym = %s" (show_literal rule.sym));
+    trace (fmt "parse_nud: rule.sym = %s" (show_literal rule.sym));
     let default_nud = !! ((grammar.default rule.sym).nud) in
     let current_nud = rule.nud || default_nud in
     current_nud >>= parse_led rbp
@@ -131,7 +92,7 @@ let init ~lexer ~grammar () =
   let token = read_token lexer in
   let rule = lookup_rule grammar token in
   let s = { lexer; token; grammar; rule } in
-  match run (parse_exp 0 << expect (Sym "EOF")) s with
+  match run (parse_nud 0 << expect (Sym "EOF")) s with
   | Ok (value, _) -> value
   | Error msg -> raise (Failure msg)
 
@@ -150,58 +111,56 @@ let unary_postfix sym =
   fun x -> return (List [Atom sym; x])
 
 let binary_infix sym lbp = rule sym ~lbp
-    ~led:(fun x -> consume sym >> parse_exp lbp >>=
+    ~led:(fun x -> consume sym >> parse_nud lbp >>=
           fun y -> return (List [Atom sym; x; y]))
 
 let binary_infix_right sym lbp = rule sym ~lbp
-  ~led:(fun x -> consume sym >> parse_exp (lbp - 1) >>=
+  ~led:(fun x -> consume sym >> parse_nud (lbp - 1) >>=
         fun y -> return (List [Atom sym; x; y]))
 
-(* Try to read the next led operator, if not defined, create a seq with
-   the previous expression x and the next prefix y. *)
+(* Try to read the next led operator, if defined, continue parsing, otherwise,
+   create a seq with the previous expression x and the next prefix y. *)
 (* let newline sym lbp = rule sym ~lbp: (lbp - 1) *)
-(*   ~led: (fun x -> advance >> parse_led (lbp - 1) x <|> (parse_exp (lbp - 1) >>= *)
+(*   ~led: (fun x -> advance >> parse_led (lbp - 1) x <|> (parse_nud (lbp - 1) >>= *)
 (*          fun y -> return (List [Atom (Sym ";"); x; y]))) *)
-(*   ~nud: (advance >> parse_exp (lbp - 1)) *)
+(*   ~nud: (advance >> parse_nud (lbp - 1)) *)
 
-let terminal sym = rule sym
+let newline sym = rule sym
+    ~lbp:(10 - 1)
+    ~led:begin fun x ->
+      consume sym >>
+      get >>= fun { rule; grammar } ->
+        if Opt.is_some rule.led then
+          parse_led (10 - 1) x
+        else
+          parse_nud (10 - 1) >>= fun y ->
+          return (List [Atom (Sym ";"); x; y])
+    end
+  ~nud:(consume sym >> parse_nud (10 - 1))
+
+(* Delimiters separate expressions without affecting the parsing tree.
+   The left binding power for delimiters is low since they are strong separators
+   and must stop the parsing in `parse_led`. *)
+let delimiter sym = rule sym
     ~lbp:0
     ~nud:nud_error
     ~led:led_error
 
-(* Delimiters separate expressions without affecting the parsing tree.
-   They may appear only as binary infix and unary postfix symbols which means
-   parsing null denotation results in an error.
-   The left binding power for delimiters is low since they are strong separators. *)
-let delimiter sym = rule sym
-    ~lbp:0
-    (* ~nud:nud_error *)
-    (* ~led:led_error *)
-    (* ~led:(fun exp -> consume sym >> return exp) *)
-
 (* Groups behave like regular symbols and thus their left binding power has to be high
    (close or equal to default) to allow list parsing in `parse_led`. *)
 let group start_sym end_sym =
+  let group_scope =
+    Scope.(define (delimiter end_sym) empty) in
   rule start_sym
     ~lbp:80
     ~nud:begin
       consume start_sym >>
-      parse_exp 0 >>= fun exp ->
+      push_scope group_scope >>
+      parse_nud 0 >>= fun exp ->
+      pop_scope >>
       consume end_sym >>
       return exp
     end
-
-(* let closed start_sym end_sym = *)
-(*   let sc = Scope.(define (delimiter end_sym) empty) in *)
-(*   rule start_sym *)
-(*     ~lbp:90 *)
-(*     ~nud:begin *)
-(*       consume start_sym >> *)
-(*       push_scope sc >> *)
-(*       parse_exp 0 >>= fun exp -> *)
-(*       pop_scope >> *)
-(*       return exp *)
-(*     end *)
 
 (* The default rule is essential for the correct parsing of atoms and lists.
    This rule's nud will create atomic expressions with the undefined symbols.
@@ -210,7 +169,7 @@ let group start_sym end_sym =
 let default sym = rule sym
     ~lbp:90
     ~led:begin fun prev_exp ->
-      parse_exp 90 >>= fun next_exp ->
+      parse_nud 90 >>= fun next_exp ->
       return @ List (match prev_exp with
         | List xs -> List.append xs [next_exp]
         | atom    -> [atom; next_exp])

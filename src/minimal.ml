@@ -37,7 +37,7 @@ let grammar =
   let open Scope in
   let rules =
     empty
-    |> define (terminal     (Sym "EOF"))
+    |> define (delimiter     (Sym "EOF"))
     (* |> define (newline      (Sym "EOL") 10) *)
     |> define (binary_infix (Sym "+")   50)
     |> define (binary_infix (Sym "-")   50)
