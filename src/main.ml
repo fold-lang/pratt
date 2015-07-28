@@ -21,7 +21,7 @@ blue ("  ▗▐▝                      \n") ^
 
 let loop () =
     while true do try
-        print_string (bright_blue "-> " ^ start_white);
+        print_string (bright_blue "=> " ^ start_white);
         flush stdout;
         let lexer = create_lexer_with_channel "<REPL>" stdin in
         let e = init ~lexer ~grammar: core_lang () in

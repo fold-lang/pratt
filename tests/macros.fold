@@ -1,0 +1,77 @@
+
+
+
+macro `que n `= x `* q `+ r
+
+end
+
+
+
+
+function hello name
+    name = catilize name
+    print "Hello, " name "!"
+end
+
+(function
+    (hello name)
+    (; (= name (catilize name))
+       (print "Hello ," name "!")))
+
+-- define `+ binary_infix 30
+
+macro x `+ y
+    ...
+end
+
+macro `if cond `then conseq `else alt `end
+
+end
+
+macro gen_getter x
+    function_template = quote
+        get_%(x) t = do
+            print "Will get %(%(x))"
+            t.%x
+        end
+    end
+end
+
+macro gen_getter x
+    function_template = quote
+        get_$x t = do
+            print "Will get $($(x))"
+            t.$x
+        end
+    end
+end
+
+gen_getters x y z
+
+puts "I have %{a} apples" % {a: apples}
+
+puts (a => "I have %{a} apples")
+
+
+local a = 5
+terra sin5()
+    return [ math.sin(a) ]
+end
+
+(macro (vec [& args])
+    (let [v (new-vector)]
+        (map (fn [i] (push v i)) args)))
+
+macro vec {
+    ( $( $x:expr ),* ) => {
+        {
+            let mut temp_vec = Vec::new();
+            $(
+                temp_vec.push($x);
+            )*
+            temp_vec
+        }
+    };
+}
+
+

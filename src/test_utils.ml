@@ -13,7 +13,7 @@ let parse_string s =
 
 let (~>) s =
   try
-    print ((bright_blue "-> ") ^ s);
+    print ((bright_blue "=> ") ^ s);
     print (" = " ^ show_exp (parse_string s))
   with Failure msg ->
     print_endline (bright_red " * " ^ bright_white "Error" ^ ": " ^ msg);
@@ -23,7 +23,7 @@ let (~~) s = ()
 
 let (==) s e =
   try
-    print_endline (fmt "%s %s" (bright_blue "->") (white s));
+    print_endline (fmt "%s %s" (bright_blue "=>") (white s));
     let r = parse_string s in
     let y = r = e in
     let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
@@ -38,7 +38,7 @@ let (==) s e =
 
 let (~>!) s =
   try
-    print_endline (fmt "%s %s" (bright_blue "->") (white s));
+    print_endline (fmt "%s %s" (bright_blue "=>") (white s));
     let r = parse_string s in
     let m = bright_red "✗ " in
     print_endline (fmt "%s %s %s %s" m (show_exp r) "::" (red "Expr"));

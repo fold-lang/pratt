@@ -73,11 +73,11 @@ let test_groups () =
 
 let test_blocks () =
   print @ bright_magenta "-- Blocks";
-  "{2}"           == int 2;
-  "{2 + 2}"       == List [sym "+"; int 2; int 2];
-  "f x {2 + 2}"   == List [sym "f"; sym "x"; List [sym "+"; int 2; int 2]];
-  "{x; y; z}"    == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
-  "{x\ny\nz}"    == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
+  "{2}"         == int 2;
+  "{2 + 2}"     == List [sym "+"; int 2; int 2];
+  "f x {2 + 2}" == List [sym "f"; sym "x"; List [sym "+"; int 2; int 2]];
+  "{x; y; z}"   == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
+  "{x\ny\nz}"   == List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]];
   ~>! "{}";
   ~>! "{\n}";
   print_newline ()
@@ -99,7 +99,7 @@ let test_edge_cases () =
   "{1 + 1\n}"          == List [sym "+"; int 1; int 1];
   "{-1}"               == List [sym "-"; int 1;];
   "{f x y\n}"          == List [sym "f"; sym "x"; sym "y"];
-  (* "{\nf x y\nx\ny\nz}" == (list (f x y) (list x (list y z))); *)
+  "{\nf x y\nx\ny\nz}" == List [sym ";"; List [sym "f"; sym "x"; sym "y"]; List [sym ";"; sym "x"; List [sym ";"; sym "y"; sym "z"]]];
   "(x\n)"              == sym "x";
   "(\nx\n)"            == sym "x";
   ~>! "(x))";
