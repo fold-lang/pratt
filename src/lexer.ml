@@ -37,7 +37,7 @@ let empty_location =
       length   = 0 }
 
 let show_location x =
-    fmt "%d/%d" x.line x.column
+    fmt "line %d, column %d" x.line x.column
 
 (* -- Token -- *)
 module Separation = struct
@@ -114,8 +114,8 @@ let increment_line lexer =
   lexer.line_count <- lexer.line_count + 1
 
 let current_token_column lexer =
-  Sedlexing.lexeme_end lexer.lexbuf -
-    lexer.line_start - Sedlexing.lexeme_length lexer.lexbuf + 1
+  let open Sedlexing in
+  lexeme_end lexer.lexbuf - lexer.line_start - lexeme_length lexer.lexbuf + 1
 
 let current_lexeme lexer =
   Sedlexing.Utf8.lexeme lexer.lexbuf
@@ -141,22 +141,28 @@ let lexer_error lexer msg =
 (*   | ""   -> current *)
 (*   | _    -> assert false *)
 
+(* FIXME: Ensure line numbers are incremented in all cases. *)
 let rec read_literal ({lexbuf} as lexer) =
   match%sedlex lexbuf with
   | Plus (white_space | comment) -> read_literal lexer
   | int_literal    -> Int (int_of_string (current_lexeme lexer))
   | float_literal  -> Float (float_of_string (current_lexeme lexer))
   | '(', Star ((white_space | '\n') | comment), ')' -> Sym "()"
-  | '('            -> lexer.group_counter <- (lexer.group_counter + 1);
-                      Sym (current_lexeme lexer)
-  | ')'            -> lexer.group_counter <- (lexer.group_counter - 1);
-                      (match lexer.group_counter <~> 0 with
-                       | `EQ | `GT -> Sym (current_lexeme lexer)
-                       | `LT -> lexer_error lexer "unbalanced parenthesis")
-  | '\n'           -> (match lexer.group_counter <~> 0 with
-                       | `EQ -> Sym "EOL"
-                       | `GT -> read_literal lexer
-                       | `LT -> lexer_error lexer "unbalanced parenthesis")
+  | '('  -> lexer.group_counter <- (lexer.group_counter + 1);
+            Sym (current_lexeme lexer)
+  | ')' -> begin
+      lexer.group_counter <- (lexer.group_counter - 1);
+      match lexer.group_counter <~> 0 with
+      | `EQ | `GT -> Sym (current_lexeme lexer)
+      | `LT -> lexer_error lexer "unbalanced parenthesis"
+    end
+  | '\n' -> begin
+      increment_line lexer;
+      match lexer.group_counter <~> 0 with
+      | `EQ -> Sym "EOL"
+      | `GT -> read_literal lexer
+      | `LT -> lexer_error lexer "unbalanced parenthesis"
+    end
   | symbol_literal -> Sym (current_lexeme lexer)
   | Plus identifier_char -> Sym (current_lexeme lexer)
   | eof            -> Sym "EOF"

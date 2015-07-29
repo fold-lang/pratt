@@ -57,7 +57,7 @@ let block start_sym =
   let group_scope =
     Scope.(empty |> define (delimiter end_sym)) in
   rule start_sym
-    ~lbp:80
+    ~lbp:terminal_precedence
     ~nud:begin
       consume start_sym >>
       push_scope group_scope >>
@@ -65,8 +65,7 @@ let block start_sym =
         let args, body = match exp with
           | List [Atom (Sym ";"); List args; body] -> List args, body
           | List [Atom (Sym ";"); Atom (Sym name); body] -> List [Atom (Sym name)], body
-          | _ -> raise (Failure (fmt "Bad %s syntax:\n%s" (show_literal start_sym)
-                                   (show_exp exp))) in
+          | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
