@@ -3,5 +3,5 @@ S src
 B _build
 B _build/src
 
-PKG sedlex
+PKG sedlex compiler-libs.bytecomp
 

@@ -6,6 +6,8 @@ open Fold.Parser
 open Fold.Pratt
 open Fold.Lang
 
+module Enc = Fold.Encoder
+
 
 let fold_logo =
 blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
@@ -25,6 +27,9 @@ let loop () =
         flush stdout;
         let lexer = create_lexer_with_channel "<REPL>" stdin in
         let e = init ~lexer ~grammar: core_lang () in
+        let caml_e = Enc.encode e in
+        Format.printf "%a@." Pprintast.expression caml_e;
+
         print (green " = " ^ start_white ^ (show_exp e))
     with
         Failure msg -> print_endline @@ (bright_red " * Error" ^ ": " ^ msg);

@@ -73,6 +73,22 @@ let block start_sym =
       end
     end
 
+let quote =
+  let quote_sym = Sym "`" in
+  rule quote_sym
+    ~lbp:90
+    ~led:begin fun prev_exp ->
+      consume quote_sym >>
+      parse_nud 90 >>= fun next_exp ->
+      let quoted_exp = List [Atom quote_sym; next_exp] in
+      return @ List (match prev_exp with
+          | List xs -> List.append xs [quoted_exp]
+          | atom -> [atom; quoted_exp])
+    end
+    ~nud:begin
+      consume quote_sym >> return @ List [Atom quote_sym]
+    end
+
 let core_lang =
   let open Scope in
   let main_scope =
@@ -94,6 +110,7 @@ let core_lang =
     |> define (group (Sym "do") (Sym "end"))
 
     |> define if_then_else
+    |> define quote
 
     |> define (block (Sym "macro"))
     |> define (block (Sym "function"))
@@ -101,23 +118,4 @@ let core_lang =
     |> define (block (Sym "interface"))
 
   in grammar ~main: main_scope ~default
-
-(* WIP Eval implementation *)
-(* let rec eval exp env = match exp with *)
-(*   (* Macro definition. *) *)
-(*   | List [Atom (Sym "macro"); name; exp] -> *)
-(*     let value = eval exp env in *)
-(*     Env.define name value; *)
-(*     value *)
-(*   (* Value definition. *) *)
-(*   | List [Atom (Sym "="); name; exp] -> *)
-(*     let value = eval exp env in *)
-(*     Env.define name value; *)
-(*     value *)
-(*   (* Conditional expression. *) *)
-(*   | List [Atom (Sym "if"); condition; consequence; alternative] -> *)
-(*     if eval condition *)
-(*       then eval consequence *)
-(*       else eval alternative *)
-(*   | _ -> raise (Failure "Could not eval") *)
 

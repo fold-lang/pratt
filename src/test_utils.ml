@@ -8,8 +8,10 @@ open Fold.Lang
 (* -- Mini Testing Engine -- *)
 
 let parse_string s =
-    init ~lexer: (create_lexer_with_string "Fold.Lang.Tests" s)
-         ~grammar: core_lang ()
+  let exp = init
+      ~lexer: (create_lexer_with_string "Fold.Lang.Tests" s)
+      ~grammar: core_lang () in
+  exp
 
 let (~>) s =
   try

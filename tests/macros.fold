@@ -1,11 +1,7 @@
 
-
-
-macro `que n `= x `* q `+ r
-
+macro `if cond `then conseq `else alt `end
+    `(if %cond %conseq %alt)
 end
-
-
 
 
 function hello name

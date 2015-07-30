@@ -81,6 +81,13 @@ let rec parse_led rbp x =
       then current_led x >>= parse_led rbp
       else return x
 
+let parse_one =
+  get >>= fun { rule; grammar } ->
+    trace (fmt "parse_one: rule.sym = %s" (show_literal rule.sym));
+    let default_nud = !! ((grammar.default rule.sym).nud) in
+    let current_nud = rule.nud || default_nud in
+    current_nud >>= return
+
 let parse_nud rbp =
   get >>= fun { rule; grammar } ->
     trace (fmt "parse_nud: rule.sym = %s" (show_literal rule.sym));
@@ -171,4 +178,5 @@ let default sym = rule sym
         | atom    -> [atom; next_exp])
     end
     ~nud:(consume sym >> return (Atom sym))
+
 

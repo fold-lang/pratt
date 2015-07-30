@@ -22,13 +22,15 @@ Library fold
   Path:           src/
   FindlibName:    fold
   Pack:           true
-  BuildDepends:   sedlex
+  BuildDepends:   sedlex,
+                  compiler-libs.bytecomp
   Modules:        Foundation,
                   Lexer,
                   Syntax,
                   Grammar,
                   Parser,
                   Pratt,
+                  Encoder,
                   Lang
 
 

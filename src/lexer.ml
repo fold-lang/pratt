@@ -131,16 +131,6 @@ let lexer_error lexer msg =
                     msg
                     (current_lexeme lexer)))
 
-(* let rec read_separator ({ lexbuf } as lexer) current = *)
-(*   match%sedlex lexbuf with *)
-(*   | Plus (white_space | comment) *)
-(*          -> read_separator lexer (Separation.max current Separation.Normal) *)
-(*   | '\n' -> read_separator lexer (Separation.max current Separation.Strong) *)
-(*   | ';'  -> read_separator lexer (Separation.max current Separation.Explicit) *)
-(*   | eof  -> Separation.max current Separation.Strong *)
-(*   | ""   -> current *)
-(*   | _    -> assert false *)
-
 (* FIXME: Ensure line numbers are incremented in all cases. *)
 let rec read_literal ({lexbuf} as lexer) =
   match%sedlex lexbuf with

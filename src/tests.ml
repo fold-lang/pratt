@@ -108,6 +108,15 @@ let test_edge_cases () =
   ~>! "";
   print_newline ()
 
+let test_quotes () =
+  print @ bright_magenta "-- Quotes";
+  "`x"            == List [sym "`"; sym "x"];
+  "`f x"          == List [sym "`"; sym "f"; sym "x"];
+  "f `x `y"       == List [sym "f"; List [sym "`"; sym "x"]; List [sym "`"; sym "y"]];
+  "f `(x + y) `z" == List [sym "f"; List [sym "`"; List [sym "+"; sym "x"; sym "y"]];
+                                    List [sym "`"; sym "z"]];
+  print_newline ()
+
 let run () =
   test_literals ();
   test_arithmetic_operators ();
@@ -117,6 +126,7 @@ let run () =
   test_newline_handling ();
   test_blocks ();
   test_edge_cases ();
+  test_quotes ();
 
   ()
 
