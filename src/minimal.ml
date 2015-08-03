@@ -26,11 +26,11 @@ let tokens = [
   "/";
 ]
 
-open Parser
 open Pratt
-open Grammar
-open Lexer
-open Syntax
+open Fold_parser
+open Fold_grammar
+open Fold_lexer
+open Fold_syntax
 
 
 let grammar =
@@ -52,7 +52,7 @@ let grammar =
 let () =
   print_endline "-- Minimal Demo Compiler";
   let result = Pratt.init
-      ~lexer:(Lexer.create_lexer_with_channel "<stdin>" stdin)
+      ~lexer:(create_lexer_with_channel "<stdin>" stdin)
       ~grammar () in
-  print_endline ("--\n" ^ (Syntax.show_exp result))
+  print_endline ("--\n" ^ (show_exp result))
 

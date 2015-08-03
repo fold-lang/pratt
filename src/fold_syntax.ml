@@ -1,6 +1,6 @@
 
 open Foundation
-open Lexer
+open Fold_lexer
 
 type exp =
   | Atom of literal          (* Basic atomic values: sym, str, int, etc. *)

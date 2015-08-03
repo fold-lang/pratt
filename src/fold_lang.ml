@@ -1,10 +1,10 @@
 
 open Foundation
-open Parser
 open Pratt
-open Syntax
-open Lexer
-open Grammar
+open Fold_parser
+open Fold_syntax
+open Fold_lexer
+open Fold_grammar
 
 let terminal_precedence = 90
 let precedence sym =

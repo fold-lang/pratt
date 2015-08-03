@@ -1,7 +1,7 @@
 
-open Fold.Syntax
-open Fold.Lexer
-open Fold.Foundation
+open Foundation
+open Fold_syntax
+open Fold_lexer
 open Test_utils
 
 

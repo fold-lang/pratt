@@ -25,12 +25,17 @@ Library fold
   BuildDepends:   sedlex,
                   compiler-libs.bytecomp
   Modules:        Foundation,
-                  Lexer,
-                  Syntax,
-                  Grammar,
-                  Parser,
                   Pratt,
-                  Encoder,
-                  Lang
+                  Fold_lexer,
+                  Fold_syntax,
+                  Fold_grammar,
+                  Fold_parser,
+                  Fold_encoder,
+                  Fold_lang
+
+#Executable fold_main
+#  Path:           src/
+#  MainIs:         fold_main.ml
+#  BuildDepends:   fold, compiler-libs.bytecomp
 
 

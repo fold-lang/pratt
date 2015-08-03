@@ -1,9 +1,10 @@
 
-open Fold.Foundation
-open Fold.Lexer
-open Fold.Syntax
-open Fold.Pratt
-open Fold.Lang
+open Foundation
+open Pratt
+open Fold_syntax
+open Fold_lexer
+open Fold_parser
+open Fold_lang
 
 (* -- Mini Testing Engine -- *)
 

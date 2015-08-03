@@ -1,8 +1,6 @@
 
-open Syntax
-open Lexer
 
-let rec encode fold_exp : Parsetree.expression =
+let rec eval fold_exp =
   let caml_exp_desc =
     match fold_exp with
     (* Literals *)
@@ -33,6 +31,5 @@ let rec encode fold_exp : Parsetree.expression =
   { pexp_desc = caml_exp_desc;
     pexp_loc = Location.none;
     pexp_attributes = [] }
-
 
 

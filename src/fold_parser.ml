@@ -1,6 +1,6 @@
 
 open Foundation
-open Syntax
+open Fold_syntax
 
 type ('a, 's) parser = 's -> ('a * 's) result
 

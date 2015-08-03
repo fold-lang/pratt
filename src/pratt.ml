@@ -1,9 +1,9 @@
 
 open Foundation
-open Lexer
-open Syntax
-open Parser
-open Grammar
+open Fold_lexer
+open Fold_syntax
+open Fold_parser
+open Fold_grammar
 
 type state = {
     lexer   : lexer;

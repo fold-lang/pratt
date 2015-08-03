@@ -1,6 +1,6 @@
 
 open Foundation
-open Lexer
+open Fold_lexer
 
 (** A grammar rule attached to a token. *)
 type ('e, 'p) rule = {
