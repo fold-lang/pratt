@@ -1,8 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 8ca29c93586a3a4b6b4d4df3850991a0)
+# DO NOT EDIT (digest: 4d1d75b33d1a3f3f03c1aacb9f5ffa1c)
 version = "0.0.1"
 description = "A modern functional pragmatic language."
-requires = "sedlex"
+requires = "sedlex compiler-libs.bytecomp"
 archive(byte) = "fold.cma"
 archive(byte, plugin) = "fold.cma"
 archive(native) = "fold.cmxa"
