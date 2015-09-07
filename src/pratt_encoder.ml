@@ -1,6 +1,6 @@
 
-open Syntax
-open Lexer
+open Pratt_syntax
+open Pratt_lexer
 
 let rec encode fold_exp : Parsetree.expression =
   let caml_exp_desc =
@@ -30,9 +30,9 @@ let rec encode fold_exp : Parsetree.expression =
       Parsetree.Pexp_apply (encode head, List.map encode_arg args)
 
     | _ -> raise (Failure "Could not encode fold expression") in
-  { pexp_desc = caml_exp_desc;
-    pexp_loc = Location.none;
-    pexp_attributes = [] }
+  Parsetree.{ pexp_desc = caml_exp_desc;
+              pexp_loc = Location.none;
+              pexp_attributes = [] }
 
 
 

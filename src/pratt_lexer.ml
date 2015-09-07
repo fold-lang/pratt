@@ -1,5 +1,5 @@
 
-open Foundation
+open Pratt_foundation
 
 (* -- Literal Type -- *)
 

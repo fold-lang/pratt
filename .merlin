@@ -1,7 +1,6 @@
 
 S src
-B _build
 B _build/src
 
-PKG sedlex compiler-libs.bytecomp
+PKG sedlex compiler-libs
 

@@ -1,9 +1,9 @@
 
-open Foundation
-open Lexer
-open Syntax
-open Parser
-open Grammar
+open Pratt_foundation
+open Pratt_lexer
+open Pratt_syntax
+open Pratt_parser
+open Pratt_grammar
 
 type state = {
     lexer   : lexer;

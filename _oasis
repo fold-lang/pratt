@@ -1,7 +1,7 @@
 OASISFormat: 0.4
 Name:        pratt-parser
 Version:     0.1.0
-Synopsis:    Top down operator precedence parser (also known as Pratt parser)
+Synopsis:    Top down operator precedence parser (also known as Pratt parser).
 Authors:     Rizo Isrof <rizo@odis.io>
 Maintainers: Rizo Isrof <rizo@odis.io>
 Homepage:    https://github.com/fold-lang/pratt-parser
@@ -9,34 +9,22 @@ License:     MIT
 BuildTools:  ocamlbuild
 Plugins: META (0.4), DevFiles (0.4)
 
-
-Executable fold
+Library pratt
   Path:           src/
-  MainIs:         main.ml
-  BuildDepends:   fold
-
-Executable minimal
-  Path:           src/
-  MainIs:         minimal.ml
-  BuildDepends:   fold
-
-Library fold
-  Path:           src/
-  FindlibName:    fold
-  Pack:           true
+  FindlibName:    pratt
+  CompiledObject: best
   BuildDepends:   sedlex,
-                  compiler-libs.bytecomp
-  Modules:        Foundation,
-                  Lexer,
-                  Syntax,
-                  Grammar,
-                  Parser,
-                  Pratt,
-                  Encoder,
-                  Lang
-
+                  compiler-libs
+  Modules:        Pratt_foundation,
+                  Pratt_lexer,
+                  Pratt_syntax,
+                  Pratt_grammar,
+                  Pratt_parser,
+                  Pratt_encoder,
+                  Pratt
 
 SourceRepository master
   Type:     git
   Location: https://github.com/fold-lang/pratt-parser.git
   Browser:  https://github.com/fold-lang/pratt-parser
+
