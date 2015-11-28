@@ -1,31 +1,42 @@
 OASISFormat: 0.4
-Name:        fold
-Version:     0.0.1
-Synopsis:    A modern functional pragmatic language.
-Authors:     Rizo Isrof
+Name:        pratt-parser
+Version:     0.1.0
+Synopsis:    Top down operator precedence parser (also known as Pratt parser).
+Authors:     Rizo Isrof <rizo@odis.io>
+Maintainers: Rizo Isrof <rizo@odis.io>
+Homepage:    https://github.com/fold-lang/pratt-parser
 License:     MIT
 BuildTools:  ocamlbuild
 Plugins: META (0.4), DevFiles (0.4)
 
-
 Executable fold
   Path:           src/
-  MainIs:         main.ml
-  BuildDepends:   fold
+  MainIs:         fold_main.ml
+  CompiledObject: best
+  BuildDepends:   pratt, elements
 
-Library fold
+Executable test_fold
+  Path:           tests/
+  MainIs:         test_fold.ml
+  CompiledObject: best
+  BuildDepends:   pratt, elements
+
+Library pratt
   Path:           src/
-  FindlibName:    fold
-  Pack:           true
+  FindlibName:    pratt
+  CompiledObject: best
   BuildDepends:   sedlex,
-                  compiler-libs.bytecomp,
-                  elements
-  Modules:        Foundation,
-                  Lexer,
-                  Syntax,
-                  Grammar,
-                  Parser,
-                  Pratt,
-                  Encoder,
-                  Lang
+                  elements,
+                  compiler-libs.bytecomp
+  Modules:        Pratt_foundation,
+                  Pratt_lexer,
+                  Pratt_syntax,
+                  Pratt_grammar,
+                  Pratt_parser,
+                  Pratt
+
+SourceRepository master
+  Type:     git
+  Location: https://github.com/fold-lang/pratt-parser.git
+  Browser:  https://github.com/fold-lang/pratt-parser
 

@@ -1,1 +1,3 @@
-(* Fold *)
+
+module Lang = Fold_lang
+

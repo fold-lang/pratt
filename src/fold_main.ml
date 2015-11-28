@@ -1,15 +1,14 @@
 
 open Elements
 
-open Fold.Foundation
-open Fold.Syntax
-open Fold.Lexer
-open Fold.Parser
-open Fold.Pratt
-open Fold.Lang
+open Pratt
+open Pratt.Foundation
+open Pratt.Syntax
+open Pratt.Lexer
+open Pratt.Parser
 
-module Enc = Fold.Encoder
-
+open Fold_lang
+open Fold_encoder
 
 let fold_logo =
   blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
@@ -29,7 +28,7 @@ let loop () =
       flush stdout;
       let lexer = create_lexer_with_channel "<REPL>" stdin in
       let fold_expr = init ~lexer ~grammar:core_lang in
-      let caml_expr = Enc.encode_expr fold_expr in
+      let caml_expr = encode_expr fold_expr in
       begin
         print ("[lisp]" ^ green " =\n" ^ start_white ^ (show_expr fold_expr));
         print_string ("[caml]" ^ green " =\n" ^ start_white);
@@ -42,7 +41,6 @@ let loop () =
 
 let () = begin
   print (end_color ^ "\n" ^ fold_logo ^ "\n");
-  Tests.run ();
   loop ();
 end
 

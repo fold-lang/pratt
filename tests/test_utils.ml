@@ -1,8 +1,8 @@
 
-open Fold.Foundation
-open Fold.Lexer
-open Fold.Syntax
-open Fold.Pratt
+open Pratt
+open Pratt.Foundation
+open Pratt.Lexer
+open Pratt.Syntax
 open Fold.Lang
 
 (* -- Mini Testing Engine -- *)
@@ -29,7 +29,7 @@ let (==) s e =
     let r = parse_string s in
     let y = r = e in
     let i = if y then (bright_green "✓ ") else (bright_red "✗ ") in
-    print_endline (fmt "%s %s %s %s" i (show_expr r) "::" (red "exprr"));
+    print_endline (fmt "%s %s %s %s" i (show_expr r) "::" (red "Expr"));
     if not y then
         (print_endline (fmt "\n  exprected: %s" (show_expr e));
        print_endline (fmt "    Actual: %s\n" (show_expr r)))

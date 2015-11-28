@@ -1,7 +1,7 @@
 
-open Fold.Syntax
-open Fold.Lexer
-open Fold.Foundation
+open Pratt.Syntax
+open Pratt.Lexer
+open Pratt.Foundation
 open Test_utils
 
 
@@ -112,7 +112,7 @@ let test_quotes () =
                                    fn (sym "`") [sym "z"]];
   print_newline ()
 
-let run () = begin
+let () = begin
   test_literals ();
   test_arithmetic_operators ();
   test_lists ();
@@ -124,5 +124,6 @@ let run () = begin
   test_quotes ();
   test_conditional ();
 end
+
 
 

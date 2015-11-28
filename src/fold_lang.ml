@@ -1,10 +1,10 @@
 
-open Foundation
-open Parser
 open Pratt
-open Syntax
-open Lexer
-open Grammar
+open Pratt.Foundation
+open Pratt.Syntax
+open Pratt.Lexer
+open Pratt.Parser
+open Pratt.Grammar
 
 let terminal_precedence = 90
 let precedence sym =

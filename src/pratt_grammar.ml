@@ -1,7 +1,7 @@
 
-open Foundation
 open Elements
-open Lexer
+open Pratt_foundation
+open Pratt_lexer
 
 (** A grammar rule attached to a token. *)
 type ('e, 'p) rule = {

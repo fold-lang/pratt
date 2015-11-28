@@ -1,7 +1,6 @@
 
-open Syntax
-open Lexer
-
+open Pratt.Syntax
+open Pratt.Lexer
 
 (* TParsetree.O: Provide location info. *)
 

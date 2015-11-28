@@ -1,12 +1,13 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4d1d75b33d1a3f3f03c1aacb9f5ffa1c)
-version = "0.0.1"
-description = "A modern functional pragmatic language."
-requires = "sedlex compiler-libs.bytecomp"
-archive(byte) = "fold.cma"
-archive(byte, plugin) = "fold.cma"
-archive(native) = "fold.cmxa"
-archive(native, plugin) = "fold.cmxs"
-exists_if = "fold.cma"
+# DO NOT EDIT (digest: 6bad06feb062b3548a71113e0229153e)
+version = "0.1.0"
+description =
+"Top down operator precedence parser (also known as Pratt parser)."
+requires = "sedlex compiler-libs"
+archive(byte) = "pratt.cma"
+archive(byte, plugin) = "pratt.cma"
+archive(native) = "pratt.cmxa"
+archive(native, plugin) = "pratt.cmxs"
+exists_if = "pratt.cma"
 # OASIS_STOP
 

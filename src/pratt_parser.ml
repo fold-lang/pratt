@@ -1,6 +1,6 @@
 
-open Foundation
-open Syntax
+open Pratt_foundation
+open Pratt_syntax
 
 type ('a, 's) parser = 's -> ('a * 's) result
 

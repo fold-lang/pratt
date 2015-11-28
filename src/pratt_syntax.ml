@@ -1,6 +1,6 @@
 
-open Foundation
-open Lexer
+open Pratt_foundation
+open Pratt_lexer
 
 type expr =
   | Atom of literal              (* Basic atomic values: sym, str, int, etc.       *)
