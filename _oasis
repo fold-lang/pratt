@@ -13,17 +13,13 @@ Executable fold
   MainIs:         main.ml
   BuildDepends:   fold
 
-Executable minimal
-  Path:           src/
-  MainIs:         minimal.ml
-  BuildDepends:   fold
-
 Library fold
   Path:           src/
   FindlibName:    fold
   Pack:           true
   BuildDepends:   sedlex,
-                  compiler-libs.bytecomp
+                  compiler-libs.bytecomp,
+                  elements
   Modules:        Foundation,
                   Lexer,
                   Syntax,
@@ -32,5 +28,4 @@ Library fold
                   Pratt,
                   Encoder,
                   Lang
-
 

@@ -1,5 +1,6 @@
 
 open Foundation
+open Elements
 open Lexer
 
 (** A grammar rule attached to a token. *)
@@ -17,74 +18,74 @@ let rule ?(lbp = 0) ?led ?nud sym =
 module Scope = struct
 
   (** Can hold the various kinds of scope definitons. *)
-  module Data = Map.Make(String)
+  module Map = Map.Make(String)
 
   type ('e, 'p) t = {
-    lbp : int Data.t;
-    led : ('e -> 'p) Data.t;
-    nud : 'p Data.t;
+    lbp : int Map.t;
+    led : ('e -> 'p) Map.t;
+    nud : 'p Map.t;
   }
 
   let empty = {
-    lbp = Data.empty;
-    led = Data.empty;
-    nud = Data.empty;
+    lbp = Map.empty;
+    led = Map.empty;
+    nud = Map.empty;
   }
 
   let show scope =
     fmt "{ lbp = [%s];\n  led  = [%s];\n  prefix = [%s] }"
-     (join ", " (List.map fst (Data.bindings scope.lbp)))
-     (join ", " (List.map fst (Data.bindings scope.led)))
-     (join ", " (List.map fst (Data.bindings scope.nud)))
+     (join ", " (List.map ~f:fst (Map.bindings scope.lbp)))
+     (join ", " (List.map ~f:fst (Map.bindings scope.led)))
+     (join ", " (List.map ~f:fst (Map.bindings scope.nud)))
 
   let is_defined_led scope name =
-    Data.mem name scope.led
+    Map.mem name scope.led
 
   let is_defined_nud scope name =
-    Data.mem name scope.nud
+    Map.mem name scope.nud
 
   let is_defined_lbp scope name =
-    Data.mem name scope.lbp
+    Map.mem name scope.lbp
 
   let lookup_led scope name =
-    Data.find name scope.led
+    Map.find name scope.led
 
   let lookup_nud scope name =
-    Data.find name scope.nud
+    Map.find name scope.nud
 
   let lookup_lbp scope name =
-    Data.find name scope.lbp
+    Map.find name scope.lbp
 
   let define rule scope =
-    let name = string_of_literal rule.sym in
-    let scope'1 = { scope with lbp = Data.add name rule.lbp scope.lbp } in
+    let name = show_literal rule.sym in
+    let scope'1 = { scope with lbp = Map.add name rule.lbp scope.lbp } in
     let scope'2 = match rule.led with
-      | Some led -> (if Data.mem name scope.led then
+      | Some led -> (if Map.mem name scope.led then
                        print @ fmt "Redefinition of led symbol %s" name);
-        { scope'1 with led = Data.add name led scope.led }
+        { scope'1 with led = Map.add name led scope.led }
       | None -> scope'1 in
     let scope'3 = match rule.nud with
-      | Some nud -> (if Data.mem name scope.nud then
+      | Some nud -> (if Map.mem name scope.nud then
                        print @ fmt "Redefinition of nud symbol %s" name);
-        { scope'2 with nud = Data.add name nud scope.nud }
+        { scope'2 with nud = Map.add name nud scope.nud }
       | None -> scope'2 in
     scope'3
 
   let define_led rule scope : ('e, 'p) t =
-    let name = string_of_literal rule.sym in
-    (if Data.mem name scope.led then
-       print @ fmt "Redefinition of led symbol %s" name);
+    let name = show_literal rule.sym in
+    if Map.mem name scope.led then
+       Log.wrn (fmt "Redefinition of led symbol `%s`." name);
     match rule.led with
-    | Some led -> { scope with lbp = Data.add name rule.lbp scope.lbp;
-                               led = Data.add name led      scope.led }
+    | Some led -> { scope with lbp = Map.add name rule.lbp scope.lbp;
+                               led = Map.add name led      scope.led }
     | None -> raise (Invalid_argument "rule has no led code")
 
   let define_nud rule scope : ('e, 'p) t =
-    let name = string_of_literal rule.sym in
-    (if Data.mem name scope.nud then
-       print @ fmt "Redefinition of nud symbol %s" name);
+    let name = show_literal rule.sym in
+    if Map.mem name scope.nud then
+       Log.wrn (fmt "Redefinition of nud symbol `%s`." name);
     match rule.nud with
-    | Some nud -> { scope with nud = Data.add name nud scope.nud }
+    | Some nud -> { scope with nud = Map.add name nud scope.nud }
     | None -> raise (Invalid_argument "rule has no nud code")
 end
 
@@ -99,7 +100,7 @@ let grammar ~main ~default = {
 }
 
 let show_grammar g =
-  join "\n" (List.map Scope.show g.env)
+  join "\n" (List.map ~f:Scope.show g.env)
 
 let rec lookup_led g name =
   match g.env with
@@ -124,7 +125,7 @@ let rec lookup_lbp g name =
 
 let lookup_rule g t =
   let sym  = t.value in
-  let name = string_of_literal sym in
+  let name = show_literal sym in
   let lbp = lookup_lbp g name || (g.default sym).lbp in
   let led = lookup_led g name in
   let nud = lookup_nud g name in

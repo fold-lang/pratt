@@ -4,25 +4,25 @@ open Foundation
 (* -- Literal Type -- *)
 
 type literal =
-    | Sym of string
-    | Str of string
-    | Char of char
-    | Float of float
-    | Int of int
+  | Sym of string
+  | Str of string
+  | Char of char
+  | Float of float
+  | Int of int
+
+let show_literal' = function
+  | Sym   x -> fmt "`%s" (bright_white x)
+  | Str   x -> fmt "\"%s\"" x
+  | Float x -> fmt "%f" x
+  | Int x   -> yellow (fmt "%d" x)
+  | Char x  -> yellow (fmt "'%c'" x)
 
 let show_literal = function
-    | Sym   x -> fmt "`%s" (bright_white x)
-    | Str   x -> fmt "\"%s\"" x
-    | Float x -> fmt "%f" x
-    | Int x   -> yellow (fmt "%d" x)
-    | Char x  -> yellow (fmt "'%c'" x)
-
-let string_of_literal = function
-    | Sym  x  -> fmt "`%s" x
-    | Str  x  -> fmt "\"%s\"" x
-    | Float x -> fmt "%f" x
-    | Int x   -> fmt "%d" x
-    | Char x  -> fmt "'%c'" x
+  | Sym  x  -> fmt "`%s" x
+  | Str  x  -> fmt "\"%s\"" x
+  | Float x -> fmt "%f" x
+  | Int x   -> fmt "%d" x
+  | Char x  -> fmt "'%c'" x
 
 (* -- Location -- *)
 
@@ -32,12 +32,12 @@ type location =
     length   : int }
 
 let empty_location =
-    { line     = 0;
-      column   = 0;
-      length   = 0 }
+  { line     = 0;
+    column   = 0;
+    length   = 0 }
 
 let show_location x =
-    fmt "line %d, column %d" x.line x.column
+  fmt "line %d, column %d" x.line x.column
 
 (* -- Token -- *)
 module Separation = struct

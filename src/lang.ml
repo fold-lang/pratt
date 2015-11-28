@@ -33,43 +33,48 @@ let precedence sym =
 (* POSTFIX     = 7; *)
 (* CALL        = 8; *)
 
+(* Common Keywords *)
 
 let if_then_else =
   let if_sym, then_sym, else_sym, end_sym =
     Sym "if", Sym "then", Sym "else", Sym "end" in
   let scope =
-    Scope.(empty |> define (delimiter then_sym)
-                 |> define (delimiter else_sym)
-                 |> define (delimiter end_sym)) in
+    Scope.(empty
+           |> define (delimiter then_sym)
+           |> define (delimiter else_sym)
+           |> define (delimiter end_sym)) in
   rule if_sym
-  ~nud:begin
-    consume if_sym >>
-    push_scope scope >>
-    parse_nud 0 >>= fun condition   -> consume then_sym >>
-    parse_nud 0 >>= fun consequence -> consume else_sym >>
-    parse_nud 0 >>= fun alternative -> consume end_sym >>
-    pop_scope >>
-    return @ List [Atom if_sym; condition; consequence; alternative]
-  end
+    ~nud:begin
+      consume if_sym >>
+      push_scope scope >>
+      parse_nud 0 >>= fun condition   -> consume then_sym >>
+      parse_nud 0 >>= fun consequence -> (consume else_sym >>
+      parse_nud 0 >>= fun alternative -> consume end_sym >>
+      pop_scope >> return (Term (Atom if_sym, [condition; consequence; alternative])))
+      <|> (consume end_sym >>
+           pop_scope >> return (Term (Atom if_sym, [condition; consequence;])))
+    end
 
 let block start_sym =
   let end_sym = Sym "end" in
-  let group_scope =
+  let local_scope =
     Scope.(empty |> define (delimiter end_sym)) in
   rule start_sym
     ~lbp:terminal_precedence
     ~nud:begin
       consume start_sym >>
-      push_scope group_scope >>
+      push_scope local_scope >>
       parse_nud 0 >>= fun exp -> begin
-        let args, body = match exp with
-          | List [Atom (Sym ";"); List args; body] -> List args, body
-          | List [Atom (Sym ";"); Atom (Sym name); body] -> List [Atom (Sym name)], body
+        let args, body =
+          match exp with
+
+          | Term (Atom (Sym ";"), [Term f_args; body]) -> Term f_args, body
+          | Term (Atom (Sym ";"), [Atom (Sym name); body]) -> Term (Atom (Sym name), []), body
           | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
-        return @ List [Atom start_sym; args; body]
+        return (Term (Atom start_sym, [args; body]))
       end
     end
 
@@ -79,14 +84,14 @@ let quote =
     ~lbp:90
     ~led:begin fun prev_exp ->
       consume quote_sym >>
-      parse_nud 90 >>= fun next_exp ->
-      let quoted_exp = List [Atom quote_sym; next_exp] in
-      return @ List (match prev_exp with
-          | List xs -> List.append xs [quoted_exp]
-          | atom -> [atom; quoted_exp])
+      parse_nud 90 >>= fun next_expr ->
+      let quoted_exp = Term (Atom quote_sym, [next_expr]) in
+      return (match prev_exp with
+          | Term (f, args) -> Term (f, List.append args [quoted_exp])
+          | atom -> Term (atom, [quoted_exp]))
     end
     ~nud:begin
-      consume quote_sym >> return @ List [Atom quote_sym]
+      consume quote_sym >> return (atom quote_sym)
     end
 
 let core_lang =
@@ -103,6 +108,9 @@ let core_lang =
     |> define (binary_infix       (Sym "#")   20)
     |> define (binary_infix       (Sym "=")   10)
 
+    (* TODO: Needs testing. *)
+    |> define (binary_infix       (Sym ",")   15)
+
     |> define (binary_infix_right (Sym ";")   20)
 
     |> define (group (Sym "(") (Sym ")"))
@@ -116,6 +124,6 @@ let core_lang =
     |> define (block (Sym "function"))
     |> define (block (Sym "module"))
     |> define (block (Sym "interface"))
-
-  in grammar ~main: main_scope ~default
+  in
+    grammar ~main: main_scope ~default
 
