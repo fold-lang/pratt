@@ -39,20 +39,21 @@ let if_then_else =
   let if_sym, then_sym, else_sym, end_sym =
     Sym "if", Sym "then", Sym "else", Sym "end" in
   let scope =
-    Scope.(empty
-           |> define (delimiter then_sym)
-           |> define (delimiter else_sym)
-           |> define (delimiter end_sym)) in
+    Scope.(empty |> define (delimiter then_sym)
+                 |> define (delimiter else_sym)
+                 |> define (delimiter end_sym)) in
   rule if_sym
     ~nud:begin
       consume if_sym >>
       push_scope scope >>
       parse_nud 0 >>= fun condition   -> consume then_sym >>
-      parse_nud 0 >>= fun consequence -> (consume else_sym >>
-      parse_nud 0 >>= fun alternative -> consume end_sym >>
-      pop_scope >> return (Term (Atom if_sym, [condition; consequence; alternative])))
+      parse_nud 0 >>= fun consequence ->
+      (consume else_sym >>
+       parse_nud 0 >>= fun alternative -> consume end_sym >>
+       pop_scope >>
+       return (List [Atom if_sym; condition; consequence; alternative]))
       <|> (consume end_sym >>
-           pop_scope >> return (Term (Atom if_sym, [condition; consequence;])))
+           pop_scope >> return (List [Atom if_sym; condition; consequence;]))
     end
 
 let block start_sym =
@@ -67,14 +68,13 @@ let block start_sym =
       parse_nud 0 >>= fun exp -> begin
         let args, body =
           match exp with
-
-          | Term (Atom (Sym ";"), [Term f_args; body]) -> Term f_args, body
-          | Term (Atom (Sym ";"), [Atom (Sym name); body]) -> Term (Atom (Sym name), []), body
+          | List [Atom (Sym ";"); List args; body] -> List args, body
+          | List [Atom (Sym ";"); Atom (Sym name); body] -> List [Atom (Sym name)], body
           | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
-        return (Term (Atom start_sym, [args; body]))
+        return (List [Atom start_sym; args; body])
       end
     end
 
@@ -82,16 +82,16 @@ let quote =
   let quote_sym = Sym "`" in
   rule quote_sym
     ~lbp:90
-    ~led:begin fun prev_exp ->
+    ~led:begin fun prev_expr ->
       consume quote_sym >>
       parse_nud 90 >>= fun next_expr ->
-      let quoted_exp = Term (Atom quote_sym, [next_expr]) in
-      return (match prev_exp with
-          | Term (f, args) -> Term (f, List.append args [quoted_exp])
-          | atom -> Term (atom, [quoted_exp]))
+      let quoted_exp = List [Atom quote_sym; next_expr] in
+      return (match prev_expr with
+          | List xs -> List (List.append xs [quoted_exp])
+          | atom    -> List [atom; quoted_exp])
     end
     ~nud:begin
-      consume quote_sym >> return (atom quote_sym)
+      consume quote_sym >> return (List [Atom quote_sym])
     end
 
 let core_lang =

@@ -4,25 +4,20 @@ open Pratt_foundation
 (* -- Literal Type -- *)
 
 type literal =
-  | Sym of string
-  | Str of string
+  | Bool of bool
   | Char of char
   | Float of float
   | Int of int
-
-let show_literal' = function
-  | Sym   x -> fmt "`%s" (bright_white x)
-  | Str   x -> fmt "\"%s\"" x
-  | Float x -> fmt "%f" x
-  | Int x   -> yellow (fmt "%d" x)
-  | Char x  -> yellow (fmt "'%c'" x)
+  | Str of string
+  | Sym of string
 
 let show_literal = function
-  | Sym  x  -> fmt "`%s" x
-  | Str  x  -> fmt "\"%s\"" x
-  | Float x -> fmt "%f" x
-  | Int x   -> fmt "%d" x
-  | Char x  -> fmt "'%c'" x
+  | Bool  x -> fmt "%b"     x
+  | Char  x -> fmt "'%c'"   x
+  | Float x -> fmt "%f"     x
+  | Int   x -> fmt "%d"     x
+  | Str   x -> fmt "\"%s\"" x
+  | Sym   x -> fmt "`%s"    x
 
 (* -- Location -- *)
 

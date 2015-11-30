@@ -27,6 +27,9 @@ let rec encode_expr fold_expr : Parsetree.expression =
     | Atom (Str str_val) ->
       Parsetree.Pexp_constant (Asttypes.Const_string (str_val, None))
 
+    | Atom (Bool str_val) ->
+      raise (Failure "TODO: encode bool values.")
+
     | Atom (Char char_val) ->
       Parsetree.Pexp_constant (Asttypes.Const_char char_val)
 
@@ -34,7 +37,7 @@ let rec encode_expr fold_expr : Parsetree.expression =
       Parsetree.Pexp_constant (Asttypes.Const_float (string_of_float float_val))
 
     (* Bindings *)
-    | Term (Atom (Sym ";"), [Term (Atom (Sym "="), [patt; value]); body]) ->
+    | List [Atom (Sym ";"); List [Atom (Sym "="); patt; value]; body] ->
       let value_binding =
         Parsetree.{ pvb_pat = encode_patt patt;
             pvb_expr = encode_expr value;
@@ -43,21 +46,21 @@ let rec encode_expr fold_expr : Parsetree.expression =
       Parsetree.Pexp_let (Asttypes.Nonrecursive, [value_binding], encode_expr body)
 
     (* Sequence *)
-    | Term (Atom (Sym ";"), [exp_1; exp_2]) ->
+    | List [Atom (Sym ";"); exp_1; exp_2] ->
       Parsetree.Pexp_sequence (encode_expr exp_1, encode_expr exp_2)
 
     (* Conditionals *)
-    | Term (Atom (Sym "if"), [cond; conseq; alt]) ->
+    | List [Atom (Sym "if"); cond; conseq; alt] ->
       Parsetree.Pexp_ifthenelse (encode_expr cond, encode_expr conseq, Some (encode_expr alt))
 
-    | Term (Atom (Sym "if"), [cond; conseq]) ->
+    | List [Atom (Sym "if"); cond; conseq] ->
       Parsetree.Pexp_ifthenelse (encode_expr cond, encode_expr conseq, None)
 
     (* Function Application *)
-    | Term (f, args) ->
+    | List (f :: args) ->
       let encode_arg arg = ("", encode_expr arg) in  (* No labels. *)
-      Parsetree.Pexp_apply (encode_expr f, List.map encode_arg args) in
-
+      Parsetree.Pexp_apply (encode_expr f, List.map encode_arg args)
+    | List [] -> assert false in
   Parsetree.{ pexp_desc = caml_expr_desc;
       pexp_loc = Location.none;
       pexp_attributes = [] }

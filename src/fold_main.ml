@@ -30,7 +30,7 @@ let loop () =
       let fold_expr = init ~lexer ~grammar:core_lang in
       let caml_expr = encode_expr fold_expr in
       begin
-        print ("[lisp]" ^ green " =\n" ^ start_white ^ (show_expr fold_expr));
+        print ("[lisp]" ^ green " =\n" ^ start_white ^ (Expr.show fold_expr));
         print_string ("[caml]" ^ green " =\n" ^ start_white);
         Format.printf "%a@." Pprintast.expression caml_expr;
       end
