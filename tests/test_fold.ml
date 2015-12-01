@@ -128,6 +128,7 @@ let test_bugs () = begin
   print @ bright_magenta "-- Examples";
   "a = b - 1 + 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
   "a = b - 1\n+ 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
+  "r = f a\nr" == seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]]) (sym "r");
   (* "do *)
      (* a = b - 1 *)
        (* + 4 *)

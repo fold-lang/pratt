@@ -6,13 +6,13 @@ open Pratt_lexer
 (** A grammar rule attached to a token. *)
 type ('e, 'p) rule = {
   sym : literal;
-  lbp : int;
+  precedence : int;
   led : ('e -> 'p) option;
   nud : 'p option;
 }
 
-let rule ?(lbp = 0) ?led ?nud sym =
-  { sym; lbp; led; nud }
+let rule ?(precedence = 0) ?led ?nud sym =
+  { sym; precedence; led; nud }
 
 (** Scope encapsulates the definitions of the grammar rules. *)
 module Scope = struct
@@ -21,20 +21,20 @@ module Scope = struct
   module Map = Map.Make(String)
 
   type ('e, 'p) t = {
-    lbp : int Map.t;
+    precedence : int Map.t;
     led : ('e -> 'p) Map.t;
     nud : 'p Map.t;
   }
 
   let empty = {
-    lbp = Map.empty;
+    precedence = Map.empty;
     led = Map.empty;
     nud = Map.empty;
   }
 
   let show scope =
-    fmt "{ lbp = [%s];\n  led  = [%s];\n  prefix = [%s] }"
-     (join ", " (List.map ~f:fst (Map.bindings scope.lbp)))
+    fmt "{ precedence = [%s];\n  led  = [%s];\n  prefix = [%s] }"
+     (join ", " (List.map ~f:fst (Map.bindings scope.precedence)))
      (join ", " (List.map ~f:fst (Map.bindings scope.led)))
      (join ", " (List.map ~f:fst (Map.bindings scope.nud)))
 
@@ -44,8 +44,8 @@ module Scope = struct
   let is_defined_nud scope name =
     Map.mem name scope.nud
 
-  let is_defined_lbp scope name =
-    Map.mem name scope.lbp
+  let is_defined_precedence scope name =
+    Map.mem name scope.precedence
 
   let lookup_led scope name =
     Map.find name scope.led
@@ -53,12 +53,12 @@ module Scope = struct
   let lookup_nud scope name =
     Map.find name scope.nud
 
-  let lookup_lbp scope name =
-    Map.find name scope.lbp
+  let lookup_precedence scope name =
+    Map.find name scope.precedence
 
   let define rule scope =
     let name = show_literal rule.sym in
-    let scope'1 = { scope with lbp = Map.add name rule.lbp scope.lbp } in
+    let scope'1 = { scope with precedence = Map.add name rule.precedence scope.precedence } in
     let scope'2 = match rule.led with
       | Some led -> (if Map.mem name scope.led then
                        print @ fmt "Redefinition of led symbol %s" name);
@@ -76,7 +76,7 @@ module Scope = struct
     if Map.mem name scope.led then
        Log.wrn (fmt "Redefinition of led symbol `%s`." name);
     match rule.led with
-    | Some led -> { scope with lbp = Map.add name rule.lbp scope.lbp;
+    | Some led -> { scope with precedence = Map.add name rule.precedence scope.precedence;
                                led = Map.add name led      scope.led }
     | None -> raise (Invalid_argument "rule has no led code")
 
@@ -116,17 +116,17 @@ let rec lookup_nud g name =
                  else lookup_nud { g with env = env' } name
   | [] -> None
 
-let rec lookup_lbp g name =
+let rec lookup_precedence g name =
   match g.env with
-  | s::env' -> if Scope.is_defined_lbp s name
-                 then Some (Scope.lookup_lbp s name)
-                 else lookup_lbp { g with env = env' } name
+  | s::env' -> if Scope.is_defined_precedence s name
+                 then Some (Scope.lookup_precedence s name)
+                 else lookup_precedence { g with env = env' } name
   | [] -> None
 
 let lookup_rule g t =
   let sym  = t.value in
   let name = show_literal sym in
-  let lbp = lookup_lbp g name || (g.default sym).lbp in
+  let precedence = lookup_precedence g name || (g.default sym).precedence in
   let led = lookup_led g name in
   let nud = lookup_nud g name in
   (* let led = Some (match lookup_led g name with *)
@@ -136,5 +136,5 @@ let lookup_rule g t =
   (*   | Some nud -> nud *)
   (*   | None -> Option.value_exn (g.default sym).nud) in *)
 
-  { sym; lbp; led; nud }
+  { sym; precedence; led; nud }
 

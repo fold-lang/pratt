@@ -5,6 +5,8 @@ module Syntax     = Pratt_syntax
 module Parser     = Pratt_parser
 module Grammar    = Pratt_grammar
 
+module Log = Elements.Log
+
 open Pratt_foundation
 open Pratt_lexer
 open Pratt_syntax
@@ -40,7 +42,7 @@ let (<?>) p label = fun s ->
       | ok -> ok
 
 let advance = get >>= fun s ->
-  let token = read_token s.lexer in
+  let token = Lexer.next s.lexer in
   let rule = lookup_rule s.grammar token in
   put { s with rule; token }
 
@@ -77,35 +79,45 @@ let with_scope s p =
 
 (* TODO: Move the default rule lookup to Grammar. *)
 
-let rec parse_led rbp x =
+let rec parse_infix' rbp x =
   get >>= fun { rule; grammar } ->
-    trace (fmt "parse_led: tok = %s, left = %s, lbp = %d, rbp = %d"
-             (show_literal rule.sym) (Expr.show x) rule.lbp rbp);
+    trace (fmt "parse_infix: sym = %s, precedence = %d, rbp = %d, left = %s"
+             (show_literal rule.sym) rule.precedence rbp (Expr.show x));
     let default_led = !! ((grammar.default rule.sym).led) in
     let current_led = rule.led || default_led in
-    if rule.lbp > rbp
-      then current_led x >>= parse_led rbp
+    if rule.precedence > rbp
+      then current_led x >>= parse_infix' rbp
       else return x
 
-let parse_one =
-  get >>= fun { rule; grammar } ->
-    trace (fmt "parse_one: tok = %s" (show_literal rule.sym));
-    let default_nud = !! ((grammar.default rule.sym).nud) in
-    let current_nud = rule.nud || default_nud in
-    current_nud >>= return
+let is_eol rule = (rule.sym = Sym "EOL")
 
-let parse_nud rbp =
+let rec parse_infix precedence left =
+  get >>= fun { rule; grammar } -> begin
+    trace (fmt " infix\t%s\t%d\t%d\t%s\t%s"
+             (show_literal rule.sym) rule.precedence precedence
+             (if rule.precedence > precedence then "." else "!")
+             (Expr.show left));
+
+    let default = Opt.value_exn (grammar.default rule.sym).led in
+    let parse = rule.led || default in
+    if rule.precedence > precedence
+      then parse left >>= parse_infix precedence
+      else return left
+  end
+
+let parse_prefix rbp =
   get >>= fun { rule; grammar } ->
-    trace (fmt "parse_nud: tok = %s" (show_literal rule.sym));
+    trace (fmt "prefix\t%s\t%d\t%d\t"
+           (show_literal rule.sym) rule.precedence rbp);
     let default_nud = !! ((grammar.default rule.sym).nud) in
     let current_nud = rule.nud || default_nud in
-    current_nud >>= parse_led rbp
+    current_nud >>= parse_infix rbp
 
 let init ~lexer ~grammar =
   let token = read_token lexer in
   let rule = lookup_rule grammar token in
   let s = { lexer; token; grammar; rule } in
-  match run (parse_nud 0 << expect (Sym "EOF")) s with
+  match run (parse_prefix 0 << expect (Sym "EOF")) s with
   | Ok (value, _) -> value
   | Error msg -> raise (Failure msg)
 
@@ -115,61 +127,61 @@ let init ~lexer ~grammar =
  * Rules Builders
  *)
 
-(* let unary_prefix sym lbp = rule sym ~lbp *)
+(* let unary_prefix sym precedence = rule sym ~precedence *)
 (*   ~nud: (consume sym >> *)
-(*          parse_nud >>| *)
+(*          parse_prefix >>| *)
 (*          fun x -> List [Atom sym; x]) *)
 
 let unary_postfix sym =
   fun x -> return (List [Atom sym; x])
 
-let binary_infix sym lbp = rule sym ~lbp
-    ~led:(fun x -> consume sym >> parse_nud lbp >>=
+let binary_infix sym precedence = rule sym ~precedence
+    ~led:(fun x -> consume sym >> parse_prefix precedence >>=
           fun y -> return (List [Atom sym; x; y]))
 
-let binary_infix_right sym lbp = rule sym ~lbp
-  ~led:(fun x -> consume sym >> parse_nud (lbp - 1) >>=
+let binary_infix_right sym precedence = rule sym ~precedence
+  ~led:(fun x -> consume sym >> parse_prefix (precedence - 1) >>=
         fun y -> return (List [Atom sym; x; y]))
 
 (* Try to read the next led operator, if defined, continue parsing, otherwise,
    create a seq with the previous expression x and the next prefix y.
    Newline is right associative just like ';'. *)
-let newline sym =
-  let assign_lbp = 10 in
-  let lbp = assign_lbp - 1 in
+let end_of_line =
+  let sym = Sym "EOL" in
+  let precedence = 10 in
   rule sym
-    ~lbp
+    ~precedence
     ~led:begin fun x ->
       consume sym >>
       get >>= fun { rule; grammar } ->
         if Opt.is_some rule.led then
-          parse_led rule.lbp x
-          (* parse_led lbp x *)
+          parse_infix rule.precedence x
+          (* parse_infix precedence x *)
         else
-          parse_nud (lbp - 1) >>= fun y ->
+          parse_prefix (precedence - 1) >>= fun y ->
           return (List [Atom (Sym ";"); x; y])
     end
-  ~nud:(consume sym >> parse_nud lbp)
+  ~nud:(consume sym >> parse_prefix precedence)
 
 (* Delimiters separate expressions without affecting the parsing tree.
    The left binding power for delimiters is low since they are strong separators
-   and must stop the parsing in `parse_led`. *)
+   and must stop the parsing in `parse_infix`. *)
 let delimiter sym = rule sym
-    ~lbp:0
+    ~precedence:0
     ~nud:nud_error (* Delimiter should not start and expression *)
     ~led:led_error (* Illegal delimiter parsing. Delimiters must be consumed. *)
 
 (* Groups behave like regular symbols and thus their left binding power has to be high
-   (close or equal to default) to allow list parsing in `parse_led`. *)
+   (close or equal to default) to allow list parsing in `parse_infix`. *)
 let group start_sym end_sym =
   let group_scope =
     Scope.(define (delimiter end_sym) empty) in
   rule start_sym
-    ~lbp:80
+    ~precedence:80
     ~nud:begin
       consume start_sym >>
       push_scope group_scope >>
-      parse_nud 0 >>= fun expr ->
+      parse_prefix 0 >>= fun expr ->
       pop_scope >>
       consume end_sym >>
       return expr
@@ -180,9 +192,9 @@ let group start_sym end_sym =
    And the led will create lists of expressions.
    The default rule has the highest left binding power. *)
 let default sym = rule sym
-    ~lbp:90
+    ~precedence:90
     ~led:begin fun prev_expr ->
-      parse_nud 90 >>= fun next_expr ->
+      parse_prefix 90 >>= fun next_expr ->
       return @ List (match prev_expr with
         | List xs -> List.append xs [next_expr]
         | atom    -> [atom; next_expr])

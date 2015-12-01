@@ -100,6 +100,7 @@ let white_space     = [%sedlex.regexp? Plus (' ' | '\t')]
 type lexer =
   { filename                    : string;
     lexbuf                      : Sedlexing.lexbuf;
+    mutable peek_cache          : token option;
     mutable line_start          : int;
     mutable line_count          : int;
     mutable group_counter       : int }
@@ -153,15 +154,34 @@ let rec read_literal ({lexbuf} as lexer) =
   | eof            -> Sym "EOF"
   | any            -> lexer_error lexer "illegal character"
   | _              -> assert false
+
 let read_token lexer =
   let literal = read_literal lexer in
   let location = current_location lexer in
   { value             = literal;
     location          = location }
 
+let next lexer =
+  match lexer.peek_cache with
+  | None -> read_token lexer
+  | Some x ->
+    lexer.peek_cache <- None;
+    x
+
+let peek lexer =
+  match lexer.peek_cache with
+  | None ->
+    let token = read_token lexer in
+    lexer.peek_cache <- Some token;
+    token
+  | Some x -> x
+
+let junk t = ignore (next t)
+
 let create_lexer name lexbuf =
   { filename      = name;
     lexbuf        = lexbuf;
+    peek_cache    = None;
     line_start    = 0;
     line_count    = 1;
     group_counter = 0 }

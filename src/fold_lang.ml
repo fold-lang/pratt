@@ -46,10 +46,10 @@ let if_then_else =
     ~nud:begin
       consume if_sym >>
       push_scope scope >>
-      parse_nud 0 >>= fun condition   -> consume then_sym >>
-      parse_nud 0 >>= fun consequence ->
+      parse_prefix 0 >>= fun condition   -> consume then_sym >>
+      parse_prefix 0 >>= fun consequence ->
       (consume else_sym >>
-       parse_nud 0 >>= fun alternative -> consume end_sym >>
+       parse_prefix 0 >>= fun alternative -> consume end_sym >>
        pop_scope >>
        return (List [Atom if_sym; condition; consequence; alternative]))
       <|> (consume end_sym >>
@@ -61,11 +61,11 @@ let block start_sym =
   let local_scope =
     Scope.(empty |> define (delimiter end_sym)) in
   rule start_sym
-    ~lbp:terminal_precedence
+    ~precedence:terminal_precedence
     ~nud:begin
       consume start_sym >>
       push_scope local_scope >>
-      parse_nud 0 >>= fun exp -> begin
+      parse_prefix 0 >>= fun exp -> begin
         let args, body =
           match exp with
           | List [Atom (Sym ";"); List args; body] -> List args, body
@@ -81,10 +81,10 @@ let block start_sym =
 let quote =
   let quote_sym = Sym "`" in
   rule quote_sym
-    ~lbp:90
+    ~precedence:90
     ~led:begin fun prev_expr ->
       consume quote_sym >>
-      parse_nud 90 >>= fun next_expr ->
+      parse_prefix 90 >>= fun next_expr ->
       let quoted_exp = List [Atom quote_sym; next_expr] in
       return (match prev_expr with
           | List xs -> List (List.append xs [quoted_exp])
@@ -99,7 +99,7 @@ let core_lang =
   let main_scope =
     empty
     |> define (delimiter          (Sym "EOF"))
-    |> define (newline            (Sym "EOL"))
+    |> define end_of_line
 
     |> define (binary_infix       (Sym "+")   30)
     |> define (binary_infix       (Sym "-")   30)
