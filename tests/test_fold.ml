@@ -129,31 +129,31 @@ let test_bugs () = begin
   "a = b - 1 + 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
   "a = b - 1\n+ 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
   "r = f a\nr" == seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]]) (sym "r");
-  (* "do *)
-     (* a = b - 1 *)
-       (* + 4 *)
-     (* r = f a *)
-     (* r *)
-   (* end" == seq *)
-    (* (fn (sym "=") [sym "a"; *)
-                   (* fn (sym "+") [fn (sym "-") [sym "b"; *)
-                                               (* int 1]; *)
-                                 (* int 4]]) *)
-    (* (seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]]) *)
-       (* (sym "r")) *)
+  "do
+     a = b - 1
+       + 4
+     r = f a
+     r
+   end" == seq
+    (fn (sym "=") [sym "a";
+                   fn (sym "+") [fn (sym "-") [sym "b";
+                                               int 1];
+                                 int 4]])
+    (seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]])
+       (sym "r"))
 end
 
 let () = begin
-  (* test_literals (); *)
-  (* test_arithmetic_operators (); *)
-  (* test_lists (); *)
-  (* test_statements (); *)
-  (* test_groups (); *)
-  (* test_newline_handling (); *)
-  (* test_blocks (); *)
-  (* test_edge_cases (); *)
-  (* test_quotes (); *)
-  (* test_conditional (); *)
+  test_literals ();
+  test_arithmetic_operators ();
+  test_lists ();
+  test_statements ();
+  test_groups ();
+  test_newline_handling ();
+  test_blocks ();
+  test_edge_cases ();
+  test_quotes ();
+  test_conditional ();
   test_bugs ();
 end
 

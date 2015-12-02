@@ -1,6 +1,6 @@
 
-open Syntax
-open Lexer
+open Pratt.Syntax
+open Pratt.Lexer
 
 module Data = Map.Make(String)
 
@@ -33,7 +33,7 @@ let get env sym =
   | Atom (Sym key) ->
     begin match find env sym with
       | Some found_env -> Data.find key !(found_env.data)
-      | None -> raise (Invalid_argument ("'" ^ key ^ "' not found"))
+      | None -> raise (Invalid_argument ("name `" ^ key ^ " is not defined"))
     end
   | _ -> raise (Invalid_argument "get requires a Symbol for its key")
 

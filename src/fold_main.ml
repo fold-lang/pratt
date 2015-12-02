@@ -1,4 +1,8 @@
 
+module Lang = Fold_lang
+module Eval = Fold_evaluator
+module Env  = Fold_env
+
 open Elements
 
 open Pratt
@@ -6,9 +10,6 @@ open Pratt.Foundation
 open Pratt.Syntax
 open Pratt.Lexer
 open Pratt.Parser
-
-open Fold_lang
-open Fold_encoder
 
 let fold_logo =
   blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
@@ -21,21 +22,18 @@ let fold_logo =
   (italic "  \"Simplicity is prerequisite for reliability.\"\n") ^
   "      — Edsger W. Dijkstra"
 
-
 let loop () =
+  let env   = Env.make None in
   while true do try
-      print_string (bright_blue "-> " ^ start_white);
-      flush stdout;
+      print_string (bright_blue "-> " ^ start_white); flush stdout;
       let lexer = create_lexer_with_channel "<REPL>" stdin in
-      let fold_expr = init ~lexer ~grammar:core_lang in
-      let caml_expr = encode_expr fold_expr in
+      let expr  = Pratt.init ~lexer ~grammar:Lang.core_lang in
+      let value = Eval.eval env expr in
       begin
-        print ("[lisp]" ^ green " =\n" ^ start_white ^ (Expr.show fold_expr));
-        print_string ("[caml]" ^ green " =\n" ^ start_white);
-        Format.printf "%a@." Pprintast.expression caml_expr;
+        print (green " = " ^ start_white ^ (Expr.show value));
       end
     with
-      Failure msg -> print @@ (bright_red " * Error" ^ ": " ^ msg);
+      Failure msg | Invalid_argument msg -> print @@ (bright_red " * Error" ^ ": " ^ msg);
       flush stdout
   done
 
