@@ -38,10 +38,12 @@ module Expr = struct
   module Map = Map.Make(Base)
 
   let rec show = function
-    | Atom x  -> show_literal x
-    | List xs -> fmt "(%s)" (join " " (map show xs))
+    | Atom ((Sym _) as x) -> "`" ^ show_literal x
+    | Atom x              -> show_literal x
+    | List xs             -> fmt "`(%s)" (join " " (map show xs))
 
   let atom  x     = Atom x
+  let unit        = Atom Unit
   let str   x     = Atom (Str x)
   let int   x     = Atom (Int x)
   let sym   x     = Atom (Sym x)

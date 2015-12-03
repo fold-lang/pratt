@@ -9,7 +9,8 @@ type env = {
   data : expr Data.t ref;
 }
 
-let make next = { next; data = ref Data.empty }
+let make next = { next;        data = ref Data.empty }
+let empty     = { next = None; data = ref Data.empty }
 
 let set env sym value =
   match sym with

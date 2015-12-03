@@ -18,20 +18,20 @@ let rec encode_expr fold_expr : Parsetree.expression =
   let caml_expr_desc =
     match fold_expr with
     (* Literals *)
-    | Atom (Sym sym_name) ->
-      Parsetree.Pexp_ident (Location.mknoloc (Longident.Lident sym_name))
+    | Atom (Sym x) ->
+      Parsetree.Pexp_ident (Location.mknoloc (Longident.Lident x))
 
-    | Atom (Int int_val) ->
-      Parsetree.Pexp_constant (Asttypes.Const_int int_val)
+    | Atom (Int x) ->
+      Parsetree.Pexp_constant (Asttypes.Const_int x)
 
-    | Atom (Str str_val) ->
-      Parsetree.Pexp_constant (Asttypes.Const_string (str_val, None))
+    | Atom (Str x) ->
+      Parsetree.Pexp_constant (Asttypes.Const_string (x, None))
 
-    | Atom (Bool str_val) ->
-      raise (Failure "TODO: encode bool values.")
+    | Atom (Bool x) ->
+      Parsetree.Pexp_ident (Location.mknoloc (Longident.Lident (string_of_bool x)))
 
-    | Atom (Char char_val) ->
-      Parsetree.Pexp_constant (Asttypes.Const_char char_val)
+    | Atom (Char x) ->
+      Parsetree.Pexp_constant (Asttypes.Const_char x)
 
     | Atom (Float float_val) ->
       Parsetree.Pexp_constant (Asttypes.Const_float (string_of_float float_val))
@@ -60,10 +60,12 @@ let rec encode_expr fold_expr : Parsetree.expression =
     | List (f :: args) ->
       let encode_arg arg = ("", encode_expr arg) in  (* No labels. *)
       Parsetree.Pexp_apply (encode_expr f, List.map encode_arg args)
-    | List [] -> assert false in
+
+    | List [] -> assert false
+  in
   Parsetree.{ pexp_desc = caml_expr_desc;
-      pexp_loc = Location.none;
-      pexp_attributes = [] }
+              pexp_loc = Location.none;
+              pexp_attributes = [] }
 
 
 

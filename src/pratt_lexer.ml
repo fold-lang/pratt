@@ -10,14 +10,16 @@ type literal =
   | Int of int
   | Str of string
   | Sym of string
+  | Unit
 
 let show_literal = function
-  | Bool  x -> fmt "%b"     x
+  | Bool  x -> fmt "%s"     (if x then "T" else "F")
   | Char  x -> fmt "'%c'"   x
   | Float x -> fmt "%f"     x
   | Int   x -> fmt "%d"     x
   | Str   x -> fmt "\"%s\"" x
-  | Sym   x -> fmt "`%s"    x
+  | Sym   x -> fmt "%s"     x
+  | Unit    -> fmt "()"
 
 (* -- Location -- *)
 
@@ -133,7 +135,7 @@ let rec read_literal ({lexbuf} as lexer) =
   | Plus (white_space | comment) -> read_literal lexer
   | int_literal    -> Int (int_of_string (current_lexeme lexer))
   | float_literal  -> Float (float_of_string (current_lexeme lexer))
-  | '(', Star ((white_space | '\n') | comment), ')' -> Sym "()"
+  | '(', Star ((white_space | '\n') | comment), ')' -> Unit
   | '('  -> lexer.group_counter <- (lexer.group_counter + 1);
             Sym (current_lexeme lexer)
   | ')' -> begin
@@ -145,7 +147,8 @@ let rec read_literal ({lexbuf} as lexer) =
   | '\n' -> begin
       increment_line lexer;
       match lexer.group_counter <~> 0 with
-      | `EQ -> Sym "EOL"
+      (* EOL is treated as EOF (input termination) inside the REPL. *)
+      | `EQ -> if lexer.filename = "<REPL>" then Sym "EOF" else Sym "EOL"
       | `GT -> read_literal lexer
       | `LT -> lexer_error lexer "unbalanced parenthesis"
     end
