@@ -19,20 +19,33 @@ let unpack_number nexpr =
   | Atom (Int x) -> x
   | x -> fail (fmt "Invalid type: expected a number, found %s" (Expr.show x))
 
-let numeric_function f args =
+let bin_numeric_function f args =
   let args_num = (List.map ~f:unpack_number args) in
   Atom (Int (if List.len args < 2
              then List.fold ~init:0 ~f args_num
              else List.reduce_exn   ~f args_num))
 
+let unary_numeric_function f = function
+  | [arg] ->
+    let num = unpack_number arg in
+    Atom (Int (f num))
+  | _ -> fail "function expects 1 argument."
+
+let factorial i =
+  let rec loop acc i =
+    if i = 0 then acc
+    else loop (i * acc) (i - 1) in
+  loop 1 i
+
 module Core = Map.Make(String)
 let core =
   Core.empty
-  |> Core.add "+"  (numeric_function ( + ))
-  |> Core.add "-"  (numeric_function ( - ))
-  |> Core.add "/"  (numeric_function ( / ))
-  |> Core.add "*"  (numeric_function ( * ))
-  |> Core.add "%"  (numeric_function (fun x y -> x mod y))
+  |> Core.add "+"  (bin_numeric_function ( + ))
+  |> Core.add "-"  (bin_numeric_function ( - ))
+  |> Core.add "/"  (bin_numeric_function ( / ))
+  |> Core.add "*"  (bin_numeric_function ( * ))
+  |> Core.add "%"  (bin_numeric_function (fun x y -> x mod y))
+  |> Core.add "!"  (unary_numeric_function factorial)
 
 
 let rec quasiquote expr =
@@ -83,6 +96,7 @@ let rec eval env expr =
     end
 
   (* Process the REPL directives. *)
+  (* TODO: Make directives simple macros loaded by REPL on startup. *)
   | List (Atom (Sym "\\") :: args) ->
     begin match args with
       | [Atom (Sym "q")] -> quit ()

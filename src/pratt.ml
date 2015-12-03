@@ -132,8 +132,9 @@ let init ~lexer ~grammar =
 (*          parse_prefix >>| *)
 (*          fun x -> List [Atom sym; x]) *)
 
-let unary_postfix sym =
-  fun x -> return (List [Atom sym; x])
+let unary_postfix sym = rule sym
+  ~precedence:1
+  ~led:(fun x -> consume sym >> return (List [Atom sym; x]))
 
 let binary_infix sym precedence = rule sym ~precedence
     ~led:(fun x -> consume sym >> parse_prefix precedence >>=

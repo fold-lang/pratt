@@ -117,6 +117,8 @@ let core_lang =
     |> define (group (Sym "{") (Sym "}"))
     |> define (group (Sym "do") (Sym "end"))
 
+    |> define (unary_postfix      (Sym "!"))
+
     |> define if_then_else
     |> define quote
 
