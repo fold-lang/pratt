@@ -74,7 +74,7 @@ module Scope = struct
   let define_led rule scope : ('e, 'p) t =
     let name = show_literal rule.sym in
     if Map.mem name scope.led then
-       Log.wrn (fmt "Redefinition of led symbol `%s`." name);
+       Log.warning (fmt "Redefinition of led symbol `%s`." name);
     match rule.led with
     | Some led -> { scope with precedence = Map.add name rule.precedence scope.precedence;
                                led = Map.add name led      scope.led }
@@ -83,7 +83,7 @@ module Scope = struct
   let define_nud rule scope : ('e, 'p) t =
     let name = show_literal rule.sym in
     if Map.mem name scope.nud then
-       Log.wrn (fmt "Redefinition of nud symbol `%s`." name);
+       Log.warning (fmt "Redefinition of nud symbol `%s`." name);
     match rule.nud with
     | Some nud -> { scope with nud = Map.add name nud scope.nud }
     | None -> raise (Invalid_argument "rule has no nud code")

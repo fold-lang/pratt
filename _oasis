@@ -33,6 +33,7 @@ Library pratt
                   Pratt_syntax,
                   Pratt_grammar,
                   Pratt_parser,
+                  Pratt_env,
                   Pratt
 
 SourceRepository master

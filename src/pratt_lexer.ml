@@ -95,7 +95,7 @@ let float_literal   = [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_'),
 let identifier_char = [%sedlex.regexp? alphabetic | Chars "_'"]
 let operator_char   = [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~#" ]
 let delimeter_char  = [%sedlex.regexp? Chars "{}[]`,;\"'"]
-let symbol_literal  = [%sedlex.regexp? operator_char | delimeter_char]
+let symbol_literal  = [%sedlex.regexp? Plus (operator_char | delimeter_char)]
 let comment         = [%sedlex.regexp? "--", Star (Compl '\n')]
 let white_space     = [%sedlex.regexp? Plus (' ' | '\t')]
 

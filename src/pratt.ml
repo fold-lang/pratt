@@ -4,6 +4,7 @@ module Lexer      = Pratt_lexer
 module Syntax     = Pratt_syntax
 module Parser     = Pratt_parser
 module Grammar    = Pratt_grammar
+module Env        = Pratt_env
 
 module Log = Elements.Log
 
@@ -133,7 +134,7 @@ let init ~lexer ~grammar =
 (*          fun x -> List [Atom sym; x]) *)
 
 let unary_postfix sym = rule sym
-  ~precedence:1
+  ~precedence:70
   ~led:(fun x -> consume sym >> return (List [Atom sym; x]))
 
 let binary_infix sym precedence = rule sym ~precedence

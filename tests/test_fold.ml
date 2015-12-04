@@ -18,10 +18,10 @@ let test_literals () =
 let test_arithmetic_operators () =
   let open Expr in
   print @ bright_magenta "-- Arithmetic Operators";
-  "x + y"      == fn (sym "+") [sym "x"; sym "y"];
-  "-x"         == fn (sym "-") [sym "x"];
-  "x + y * z"  == fn (sym "+") [sym "x"; fn (sym "*") [sym "y"; sym "z"]];
-  "x + y * -z" == fn (sym "+") [sym "x"; fn (sym "*") [sym "y"; fn (sym "-") [sym "z"]]];
+  "x + y"      == call (sym "+") [sym "x"; sym "y"];
+  "-x"         == call (sym "-") [sym "x"];
+  "x + y * z"  == call (sym "+") [sym "x"; call (sym "*") [sym "y"; sym "z"]];
+  "x + y * -z" == call (sym "+") [sym "x"; call (sym "*") [sym "y"; call (sym "-") [sym "z"]]];
   print_newline ()
 
 
@@ -29,36 +29,36 @@ let test_lists () =
   (* TODO: Make a distinction between List (x f) and Func (f x y). *)
   let open Expr in
   print @ bright_magenta "-- Lists and Applications";
-  "f x"             == fn (sym "f") [sym "x"];
-  "(f) x"           == fn (sym "f") [sym "x"];
-  "f (x)"           == fn (sym "f") [sym "x"];
-  "f x y"           == fn (sym "f") [sym "x"; sym "y"];
-  "(f x) y"         == fn (sym "f") [sym "x"; sym "y"];
-  "f (f y)"         == fn (sym "f") [fn (sym "f") [sym "y"]];
-  "(x # y) z"       == fn (sym "#") [sym "x"; sym "y"; sym "z"];
-  "(f) (3)"         == fn (sym "f") [int 3];
-  "(f 1) (g 2)"     == fn (sym "f") [int 1; fn (sym "g") [int 2]];
-  "f x y + z"       == fn (sym "+") [fn (sym "f") [sym "x"; sym "y"]; sym "z"];
-  "((((f) x) y) z)" == fn (sym "f") [sym "x"; sym "y"; sym "z"];
-  "f (f (f 3))"     == fn (sym "f") [fn (sym "f") [fn (sym "f") [int 3]]];
-  "(f (f (f 3)))"   == fn (sym "f") [fn (sym "f") [fn (sym "f") [int 3]]];
-  "1 2 3 4"         == fn (int 1) [int 2; int 3; int 4];
+  "f x"             == call (sym "f") [sym "x"];
+  "(f) x"           == call (sym "f") [sym "x"];
+  "f (x)"           == call (sym "f") [sym "x"];
+  "f x y"           == call (sym "f") [sym "x"; sym "y"];
+  "(f x) y"         == call (sym "f") [sym "x"; sym "y"];
+  "f (f y)"         == call (sym "f") [call (sym "f") [sym "y"]];
+  "(x # y) z"       == call (sym "#") [sym "x"; sym "y"; sym "z"];
+  "(f) (3)"         == call (sym "f") [int 3];
+  "(f 1) (g 2)"     == call (sym "f") [int 1; call (sym "g") [int 2]];
+  "f x y + z"       == call (sym "+") [call (sym "f") [sym "x"; sym "y"]; sym "z"];
+  "((((f) x) y) z)" == call (sym "f") [sym "x"; sym "y"; sym "z"];
+  "f (f (f 3))"     == call (sym "f") [call (sym "f") [call (sym "f") [int 3]]];
+  "(f (f (f 3)))"   == call (sym "f") [call (sym "f") [call (sym "f") [int 3]]];
+  "1 2 3 4"         == call (int 1) [int 2; int 3; int 4];
   print_newline ()
 
 
 let test_conditional () =
   let open Expr in
   print @ bright_magenta "-- Conditional";
-  "if x then 1 else 0 end"  == fn (sym "if") [sym "x"; int 1; int 0];
-  "if x then 1 end"         == fn (sym "if") [sym "x"; int 1];
+  "if x then 1 else 0 end"  == call (sym "if") [sym "x"; int 1; int 0];
+  "if x then 1 end"         == call (sym "if") [sym "x"; int 1];
   print_newline ()
 
 let test_statements () =
   let open Expr in
   print @ bright_magenta "-- Statements";
   "x; y; z"    == seq (sym "x") (seq (sym "y") (sym "z"));
-  "x + y; z"   == seq (fn (sym "+") [sym "x"; sym "y"]) (sym "z");
-  "x = f y; 5" == fn (sym "=") [sym "x"; seq (fn (sym "f") [sym "y"]) (int 5)];
+  "x + y; z"   == seq (call (sym "+") [sym "x"; sym "y"]) (sym "z");
+  "x = f y; 5" == call (sym "=") [sym "x"; seq (call (sym "f") [sym "y"]) (int 5)];
   print_newline ()
 
 let test_groups () =
@@ -66,20 +66,20 @@ let test_groups () =
   print @ bright_magenta "-- Expression Groups";
   "(x)"                 == sym "x";
   "(((x)))"             == sym "x";
-  "(x + y)"             == fn (sym "+") [sym "x"; sym "y"];
-  "(x + y) * z"         == fn (sym "*") [fn (sym "+") [sym "x"; sym "y"]; sym "z"];
-  "(x + (y + y)) * z"   == fn (sym "*") [fn (sym "+") [sym "x"; fn (sym "+") [sym "y"; sym "y"]]; sym "z"];
-  "(f x y)"             == fn (sym "f") [sym "x"; sym "y"];
+  "(x + y)"             == call (sym "+") [sym "x"; sym "y"];
+  "(x + y) * z"         == call (sym "*") [call (sym "+") [sym "x"; sym "y"]; sym "z"];
+  "(x + (y + y)) * z"   == call (sym "*") [call (sym "+") [sym "x"; call (sym "+") [sym "y"; sym "y"]]; sym "z"];
+  "(f x y)"             == call (sym "f") [sym "x"; sym "y"];
   print_newline ()
 
 let test_blocks () =
   let open Expr in
   print @ bright_magenta "-- Blocks";
   "{2}"         == int 2;
-  "{2 + 2}"     == fn (sym "+") [int 2; int 2];
-  "f x {2 + 2}" == fn (sym "f") [sym "x"; fn (sym "+") [int 2; int 2]];
-  "{x; y; z}"   == fn (sym ";") [sym "x"; fn (sym ";") [sym "y"; sym "z"]];
-  "{x\ny\nz}"   == fn (sym ";") [sym "x"; fn (sym ";") [sym "y"; sym "z"]];
+  "{2 + 2}"     == call (sym "+") [int 2; int 2];
+  "f x {2 + 2}" == call (sym "f") [sym "x"; call (sym "+") [int 2; int 2]];
+  "{x; y; z}"   == call (sym ";") [sym "x"; call (sym ";") [sym "y"; sym "z"]];
+  "{x\ny\nz}"   == call (sym ";") [sym "x"; call (sym ";") [sym "y"; sym "z"]];
   ~>! "{}";
   ~>! "{\n}";
   print_newline ()
@@ -87,24 +87,24 @@ let test_blocks () =
 let test_newline_handling () =
   let open Expr in
   print @ bright_magenta "-- Newline Handling";
-  "f x y\nz"       == fn (sym ";") [fn (sym "f") [sym "x"; sym "y"]; sym "z"];
-  "x\ny"           == fn (sym ";") [sym "x"; sym "y"];
-  "x +\ny"         == fn (sym "+") [sym "x"; sym "y"];
-  "x\n! y"         == fn (sym ";") [sym "x"; fn (sym "!") [sym "y"]]; (* `!` as prefix only op. *)
-  "f x y\nz"       == fn (sym ";") [fn (sym "f") [sym "x"; sym "y"]; sym "z"];
-  "a = b - 1\n+ 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
-  "(x +\ny)"       == fn (sym "+") [sym "x"; sym "y"];
-  "(f x\ny)"       == fn (sym "f") [sym "x"; sym "y"];
-  "(f\nx y)"       == fn (sym "f") [sym "x"; sym "y"];
+  "f x y\nz"       == call (sym ";") [call (sym "f") [sym "x"; sym "y"]; sym "z"];
+  "x\ny"           == call (sym ";") [sym "x"; sym "y"];
+  "x +\ny"         == call (sym "+") [sym "x"; sym "y"];
+  "x\n! y"         == call (sym ";") [sym "x"; call (sym "!") [sym "y"]]; (* `!` as prefix only op. *)
+  "f x y\nz"       == call (sym ";") [call (sym "f") [sym "x"; sym "y"]; sym "z"];
+  "a = b - 1\n+ 4" == call (sym "=") [sym "a"; call (sym "+") [call (sym "-") [sym "b"; int 1]; int 4]];
+  "(x +\ny)"       == call (sym "+") [sym "x"; sym "y"];
+  "(f x\ny)"       == call (sym "f") [sym "x"; sym "y"];
+  "(f\nx y)"       == call (sym "f") [sym "x"; sym "y"];
   print_newline ()
 
 let test_edge_cases () =
   let open Expr in
-  "1 + 1\n"            == fn (sym "+") [int 1; int 1];
-  "{1 + 1\n}"          == fn (sym "+") [int 1; int 1];
-  "{-1}"               == fn (sym "-") [int 1;];
-  "{f x y\n}"          == fn (sym "f") [sym "x"; sym "y"];
-  "{\nf x y\nx\ny\nz}" == seq (fn (sym "f") [sym "x"; sym "y"]) (seq (sym "x") (seq (sym "y") (sym "z")));
+  "1 + 1\n"            == call (sym "+") [int 1; int 1];
+  "{1 + 1\n}"          == call (sym "+") [int 1; int 1];
+  "{-1}"               == call (sym "-") [int 1;];
+  "{f x y\n}"          == call (sym "f") [sym "x"; sym "y"];
+  "{\nf x y\nx\ny\nz}" == seq (call (sym "f") [sym "x"; sym "y"]) (seq (sym "x") (seq (sym "y") (sym "z")));
   "(x\n)"              == sym "x";
   "(\nx\n)"            == sym "x";
   ~>! "(x))";
@@ -116,30 +116,30 @@ let test_edge_cases () =
 let test_quotes () =
   let open Expr in
   print @ bright_magenta "-- Quotes";
-  "`x"            == fn (sym "`") [sym "x"];
-  "`f x"          == fn (sym "`") [sym "f"; sym "x"];
-  "f `x `y"       == fn (sym "f") [fn (sym "`") [sym "x"]; fn (sym "`") [sym "y"]];
-  "f `(x + y) `z" == fn (sym "f") [fn (sym "`") [fn (sym "+") [sym "x"; sym "y"]];
-                                   fn (sym "`") [sym "z"]];
+  "`x"            == call (sym "`") [sym "x"];
+  "`f x"          == call (sym "`") [sym "f"; sym "x"];
+  "f `x `y"       == call (sym "f") [call (sym "`") [sym "x"]; call (sym "`") [sym "y"]];
+  "f `(x + y) `z" == call (sym "f") [call (sym "`") [call (sym "+") [sym "x"; sym "y"]];
+                                   call (sym "`") [sym "z"]];
   print_newline ()
 
 let test_bugs () = begin
   let open Expr in
   print @ bright_magenta "-- Examples";
-  "a = b - 1 + 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
-  "a = b - 1\n+ 4" == fn (sym "=") [sym "a"; fn (sym "+") [fn (sym "-") [sym "b"; int 1]; int 4]];
-  "r = f a\nr" == seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]]) (sym "r");
+  "a = b - 1 + 4" == call (sym "=") [sym "a"; call (sym "+") [call (sym "-") [sym "b"; int 1]; int 4]];
+  "a = b - 1\n+ 4" == call (sym "=") [sym "a"; call (sym "+") [call (sym "-") [sym "b"; int 1]; int 4]];
+  "r = f a\nr" == seq (call (sym "=") [sym "r"; call (sym "f") [sym "a"]]) (sym "r");
   "do
      a = b - 1
        + 4
      r = f a
      r
    end" == seq
-    (fn (sym "=") [sym "a";
-                   fn (sym "+") [fn (sym "-") [sym "b";
+    (call (sym "=") [sym "a";
+                   call (sym "+") [call (sym "-") [sym "b";
                                                int 1];
                                  int 4]])
-    (seq (fn (sym "=") [sym "r"; fn (sym "f") [sym "a"]])
+    (seq (call (sym "=") [sym "r"; call (sym "f") [sym "a"]])
        (sym "r"))
 end
 

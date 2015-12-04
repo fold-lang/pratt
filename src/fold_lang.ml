@@ -98,34 +98,33 @@ let core_lang =
   let open Scope in
   let main_scope =
     empty
-    |> define (delimiter          (Sym "EOF"))
-    |> define end_of_line
 
+    |> define (binary_infix       (Sym "=")   10)
+    |> define (binary_infix       (Sym "->")  11)
+    |> define (binary_infix       (Sym ",")   15)
+    |> define (binary_infix       (Sym "#")   20)
+    |> define (binary_infix_right (Sym ";")   20)
     |> define (binary_infix       (Sym "+")   30)
     |> define (binary_infix       (Sym "-")   30)
     |> define (binary_infix       (Sym "*")   40)
     |> define (binary_infix       (Sym "/")   40)
-    |> define (binary_infix       (Sym "#")   20)
-    |> define (binary_infix       (Sym "=")   10)
 
-    (* TODO: Needs testing. *)
-    |> define (binary_infix       (Sym ",")   15)
+    |> define (block              (Sym "function"))
+    |> define (block              (Sym "interface"))
+    |> define (block              (Sym "macro"))
+    |> define (block              (Sym "module"))
 
-    |> define (binary_infix_right (Sym ";")   20)
+    |> define (delimiter          (Sym "EOF"))
 
-    |> define (group (Sym "(") (Sym ")"))
-    |> define (group (Sym "{") (Sym "}"))
-    |> define (group (Sym "do") (Sym "end"))
-
+    |> define (group              (Sym "(") (Sym ")"))
+    |> define (group              (Sym "do") (Sym "end"))
+    |> define (group              (Sym "{") (Sym "}"))
     |> define (unary_postfix      (Sym "!"))
 
+    |> define end_of_line
     |> define if_then_else
     |> define quote
 
-    |> define (block (Sym "macro"))
-    |> define (block (Sym "function"))
-    |> define (block (Sym "module"))
-    |> define (block (Sym "interface"))
   in
     grammar ~main: main_scope ~default
 
