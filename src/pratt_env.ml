@@ -1,9 +1,11 @@
 
+open Elements
+
 module Scope = Map.Make(String)
 
 type 'a env = {
-  next : 'a env option;
   data : 'a Scope.t;
+  next : 'a env option;
 }
 
 module Env = struct
@@ -14,6 +16,10 @@ module Env = struct
 
   let add name value env =
     { env with data = Scope.add name value env.data }
+
+  let add_many env bindings =
+    List.fold_left bindings ~init:env
+      ~f:(fun env (n, v) -> add n v env)
 
   let rec find env name =
     if Scope.mem name env.data then
@@ -29,5 +35,6 @@ module Env = struct
       | Some found_env -> Scope.find name found_env.data
       | None -> raise (Invalid_argument ("name " ^ name ^ " is not defined"))
     end
+
 end
 

@@ -63,7 +63,7 @@ let test_statements () =
 
 let test_groups () =
   let open Expr in
-  print @ bright_magenta "-- Expression Groups";
+  print @ bright_magenta "-- Exprression Groups";
   "(x)"                 == sym "x";
   "(((x)))"             == sym "x";
   "(x + y)"             == call (sym "+") [sym "x"; sym "y"];

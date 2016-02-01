@@ -1,6 +1,15 @@
 
 S src
-B _build/*
+S tests
 
-PKG sedlex compiler-libs.bytecomp elements
+B _build
+B _build/src
+B _build/tests
+
+PKG sedlex
+PKG compiler-libs.bytecomp
+PKG elements
+
+FLAG -safe-string
+
 

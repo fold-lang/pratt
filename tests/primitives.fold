@@ -1,0 +1,10 @@
+
+cons = x xs ->
+
+let cons hd tl =
+  match hd, tl with
+    | _, Sexp (List xs) -> list_ (hd :: xs)
+    | _, Sexp (DottedList (xs, x)) -> dotted_list (hd :: xs) x
+    | _ -> dotted_list [hd] tl
+
+

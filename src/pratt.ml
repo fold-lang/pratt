@@ -83,7 +83,7 @@ let with_scope s p =
 let rec parse_infix' rbp x =
   get >>= fun { rule; grammar } ->
     trace (fmt "parse_infix: sym = %s, precedence = %d, rbp = %d, left = %s"
-             (show_literal rule.sym) rule.precedence rbp (Expr.show x));
+             (show_literal rule.sym) rule.precedence rbp (Show.exp x));
     let default_led = !! ((grammar.default rule.sym).led) in
     let current_led = rule.led || default_led in
     if rule.precedence > rbp
@@ -97,7 +97,7 @@ let rec parse_infix precedence left =
     trace (fmt " infix\t%s\t%d\t%d\t%s\t%s"
              (show_literal rule.sym) rule.precedence precedence
              (if rule.precedence > precedence then "." else "!")
-             (Expr.show left));
+             (Show.exp left));
 
     let default = Opt.value_exn (grammar.default rule.sym).led in
     let parse = rule.led || default in
@@ -133,17 +133,18 @@ let init ~lexer ~grammar =
 (*          parse_prefix >>| *)
 (*          fun x -> List [Atom sym; x]) *)
 
+(* x f => (f: x) *)
 let unary_postfix sym = rule sym
   ~precedence:70
-  ~led:(fun x -> consume sym >> return (List [Atom sym; x]))
+  ~led:(fun x -> consume sym >> return (Expr.call (Expr.atom sym) [x]))
 
 let binary_infix sym precedence = rule sym ~precedence
     ~led:(fun x -> consume sym >> parse_prefix precedence >>=
-          fun y -> return (List [Atom sym; x; y]))
+           fun y -> return (Expr.call (Expr.atom sym) [x; y]))
 
 let binary_infix_right sym precedence = rule sym ~precedence
   ~led:(fun x -> consume sym >> parse_prefix (precedence - 1) >>=
-        fun y -> return (List [Atom sym; x; y]))
+         fun y -> return (Expr.call (Expr.atom sym) [x; y]))
 
 (* Try to read the next led operator, if defined, continue parsing, otherwise,
    create a seq with the previous expression x and the next prefix y.
@@ -161,7 +162,7 @@ let end_of_line =
           (* parse_infix precedence x *)
         else
           parse_prefix (precedence - 1) >>= fun y ->
-          return (List [Atom (Sym ";"); x; y])
+          return (Expr.seq x y)
     end
   ~nud:(consume sym >> parse_prefix precedence)
 
@@ -197,10 +198,11 @@ let default sym = rule sym
     ~precedence:90
     ~led:begin fun prev_expr ->
       parse_prefix 90 >>= fun next_expr ->
-      return @ List (match prev_expr with
-        | List xs -> List.append xs [next_expr]
-        | atom    -> [atom; next_expr])
+      let list = match prev_expr with
+        | List { data = xs } -> Expr.list (xs ++ [next_expr])
+        | _ -> Expr.list [prev_expr; next_expr] in
+      return list
     end
-    ~nud:(consume sym >> return (Atom sym))
+    ~nud:(consume sym >> return (Expr.atom sym))
 
 

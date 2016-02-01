@@ -39,8 +39,7 @@ let defined_option = function
   | None -> false
 
 
-let (=>) = (|>)
-let (append) = (@)
+let (++) = List.append
 let (@) = (@@)
 
 
@@ -48,14 +47,14 @@ let rec repeat_until fn limit =
   let x = fn () in
   if (x = limit)
     then []
-    else append [x] (repeat_until fn limit)
+    else [x] ++ (repeat_until fn limit)
 
 
 let rec repeat_fn_to fn limit =
   let x = fn () in
   if (x = limit)
     then []
-    else append [x] (repeat_fn_to fn limit)
+    else [x] ++ (repeat_fn_to fn limit)
 
 let rec repeatedly n f =
   if n = 0
@@ -218,5 +217,16 @@ end
 let (!!) = Opt.(!!)
 let (||) = Opt.(||)
 
+
+module Show = struct
+  let int = string_of_int
+  let float = string_of_float
+  let list show_item l = fmt "[%s]" (String.concat ", " (List.map show_item l))
+  let assoc k v l = list (fun (x, y) -> fmt "(%s, %s)" (k x) (v y)) l
+  let option show_item opt =
+    match opt with
+    | Some item -> fmt "Some %s" (show_item item)
+    | None -> "None"
+end
 
 

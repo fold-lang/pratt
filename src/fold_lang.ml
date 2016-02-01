@@ -51,9 +51,9 @@ let if_then_else =
       (consume else_sym >>
        parse_prefix 0 >>= fun alternative -> consume end_sym >>
        pop_scope >>
-       return (List [Atom if_sym; condition; consequence; alternative]))
+       return (Expr.list [Expr.atom if_sym; condition; consequence; alternative]))
       <|> (consume end_sym >>
-           pop_scope >> return (List [Atom if_sym; condition; consequence;]))
+           pop_scope >> return (Expr.list [Expr.atom if_sym; condition; consequence;]))
     end
 
 let block start_sym =
@@ -68,31 +68,50 @@ let block start_sym =
       parse_prefix 0 >>= fun exp -> begin
         let args, body =
           match exp with
-          | List [Atom (Sym ";"); List args; body] -> List args, body
-          | List [Atom (Sym ";"); Atom (Sym name); body] -> List [Atom (Sym name)], body
+          | List { data = [Atom { data = Sym ";" }; List args; body] }
+            -> List args, body
+          | List { data = [Atom { data = Sym ";" }; Atom { data = Sym name }; body] } ->
+            Expr.list [Expr.sym name], body
           | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
-        return (List [Atom start_sym; args; body])
+        return (Expr.list [Expr.atom start_sym; args; body])
       end
     end
 
-let quote =
+let quasiquote =
   let quote_sym = Sym "`" in
   rule quote_sym
     ~precedence:90
     ~led:begin fun prev_expr ->
       consume quote_sym >>
       parse_prefix 90 >>= fun next_expr ->
-      let quoted_exp = List [Atom quote_sym; next_expr] in
+      let quoted_exp = Expr.list [Expr.atom quote_sym; next_expr] in
       return (match prev_expr with
-          | List xs -> List (List.append xs [quoted_exp])
-          | atom    -> List [atom; quoted_exp])
+          | List { data = xs } -> Expr.list (xs ++ [quoted_exp])
+          | atom    -> Expr.list [atom; quoted_exp])
     end
     ~nud:begin
-      consume quote_sym >> return (List [Atom quote_sym])
+      consume quote_sym >> return (Expr.list [Expr.atom quote_sym])
     end
+
+let quote =
+  let quote_sym = Sym "'" in
+  rule quote_sym
+    ~precedence:90
+    ~led:begin fun prev_expr ->
+      consume quote_sym >>
+      parse_prefix 90 >>= fun next_expr ->
+      let quoted_exp = Expr.list [Expr.atom quote_sym; next_expr] in
+      return (match prev_expr with
+          | List { data = xs } -> Expr.list (xs ++ [quoted_exp])
+          | atom    -> Expr.list [atom; quoted_exp])
+    end
+    ~nud:begin
+      consume quote_sym >> return (Expr.list [Expr.atom quote_sym])
+    end
+
 
 let core_lang =
   let open Scope in
@@ -111,7 +130,6 @@ let core_lang =
 
     |> define (block              (Sym "function"))
     |> define (block              (Sym "interface"))
-    |> define (block              (Sym "macro"))
     |> define (block              (Sym "module"))
 
     |> define (delimiter          (Sym "EOF"))
@@ -123,6 +141,7 @@ let core_lang =
 
     |> define end_of_line
     |> define if_then_else
+    |> define quasiquote
     |> define quote
 
   in
