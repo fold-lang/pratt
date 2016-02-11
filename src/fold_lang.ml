@@ -51,9 +51,9 @@ let if_then_else =
       (consume else_sym >>
        parse_prefix 0 >>= fun alternative -> consume end_sym >>
        pop_scope >>
-       return (Expr.list [Expr.atom if_sym; condition; consequence; alternative]))
+       return (Expr.form [Expr.atom if_sym; condition; consequence; alternative]))
       <|> (consume end_sym >>
-           pop_scope >> return (Expr.list [Expr.atom if_sym; condition; consequence;]))
+           pop_scope >> return (Expr.form [Expr.atom if_sym; condition; consequence;]))
     end
 
 let block start_sym =
@@ -68,15 +68,15 @@ let block start_sym =
       parse_prefix 0 >>= fun exp -> begin
         let args, body =
           match exp with
-          | List { data = [Atom { data = Sym ";" }; List args; body] }
-            -> List args, body
-          | List { data = [Atom { data = Sym ";" }; Atom { data = Sym name }; body] } ->
-            Expr.list [Expr.sym name], body
+          | { value = Form [{ value = Atom (Sym ";") }; { value = Form args }; body] }
+            -> Expr.form args, body
+          | { value = Form [{ value = Atom (Sym ";") }; { value = Atom (Sym name) }; body] } ->
+            Expr.form [Expr.sym name], body
           | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
-        return (Expr.list [Expr.atom start_sym; args; body])
+        return (Expr.form [Expr.atom start_sym; args; body])
       end
     end
 
@@ -87,13 +87,11 @@ let quasiquote =
     ~led:begin fun prev_expr ->
       consume quote_sym >>
       parse_prefix 90 >>= fun next_expr ->
-      let quoted_exp = Expr.list [Expr.atom quote_sym; next_expr] in
-      return (match prev_expr with
-          | List { data = xs } -> Expr.list (xs ++ [quoted_exp])
-          | atom    -> Expr.list [atom; quoted_exp])
+      let quoted_exp = Expr.form [Expr.atom quote_sym; next_expr] in
+      return @ Expr.append prev_expr quoted_exp
     end
     ~nud:begin
-      consume quote_sym >> return (Expr.list [Expr.atom quote_sym])
+      consume quote_sym >> return (Expr.form [Expr.atom quote_sym])
     end
 
 let quote =
@@ -103,13 +101,11 @@ let quote =
     ~led:begin fun prev_expr ->
       consume quote_sym >>
       parse_prefix 90 >>= fun next_expr ->
-      let quoted_exp = Expr.list [Expr.atom quote_sym; next_expr] in
-      return (match prev_expr with
-          | List { data = xs } -> Expr.list (xs ++ [quoted_exp])
-          | atom    -> Expr.list [atom; quoted_exp])
+      let quoted_exp = Expr.form [Expr.atom quote_sym; next_expr] in
+      return @ Expr.append prev_expr quoted_exp
     end
     ~nud:begin
-      consume quote_sym >> return (Expr.list [Expr.atom quote_sym])
+      consume quote_sym >> return (Expr.form [Expr.atom quote_sym])
     end
 
 

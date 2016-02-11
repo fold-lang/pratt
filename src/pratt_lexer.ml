@@ -11,6 +11,7 @@ type literal =
   | Str of string
   | Sym of string
   | Unit
+  [@@deriving show]
 
 let show_literal = function
   | Bool  x -> fmt "%s"     (if x then "T" else "F")

@@ -83,7 +83,7 @@ let with_scope s p =
 let rec parse_infix' rbp x =
   get >>= fun { rule; grammar } ->
     trace (fmt "parse_infix: sym = %s, precedence = %d, rbp = %d, left = %s"
-             (show_literal rule.sym) rule.precedence rbp (Show.exp x));
+             (show_literal rule.sym) rule.precedence rbp (Show.expr x));
     let default_led = !! ((grammar.default rule.sym).led) in
     let current_led = rule.led || default_led in
     if rule.precedence > rbp
@@ -97,7 +97,7 @@ let rec parse_infix precedence left =
     trace (fmt " infix\t%s\t%d\t%d\t%s\t%s"
              (show_literal rule.sym) rule.precedence precedence
              (if rule.precedence > precedence then "." else "!")
-             (Show.exp left));
+             (Show.expr left));
 
     let default = Opt.value_exn (grammar.default rule.sym).led in
     let parse = rule.led || default in
@@ -198,8 +198,9 @@ let default sym = rule sym
     ~precedence:90
     ~led:begin fun prev_expr ->
       parse_prefix 90 >>= fun next_expr ->
+      (* TODO: Replace by cons. *)
       let list = match prev_expr with
-        | List { data = xs } -> Expr.list (xs ++ [next_expr])
+        | { value = Form xs } -> Expr.list (xs ++ [next_expr])
         | _ -> Expr.list [prev_expr; next_expr] in
       return list
     end

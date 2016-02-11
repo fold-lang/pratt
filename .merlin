@@ -9,6 +9,7 @@ B _build/tests
 PKG sedlex
 PKG compiler-libs.bytecomp
 PKG elements
+PKG ppx_deriving.std
 
 FLAG -safe-string
 

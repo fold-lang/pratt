@@ -3,18 +3,27 @@ open Pratt_foundation
 open Pratt_env
 open Pratt_lexer
 
-type 'a with_meta = { data : 'a; meta : expr option }
-and expr =
-  | Atom of literal             with_meta
-  | List of (expr list)         with_meta
-  | Func of (expr list -> expr) with_meta
+type value =
+  | Atom of literal
+  | Form of (expr list)
+  | Func of (expr list -> expr)
+  [@@deriving show]
+
+and expr = { value : value; meta : (literal, literal) Dict.t }
+  [@@deriving show]
 
 module Show = struct
   include Show
-  let rec exp = function
-    | Atom { data = x  } -> show_literal x
-    | List { data = xs } -> fmt "(%s)" @ String.concat " " @ List.map exp xs
-    | Func { data = _  } -> "<λ>"
+  let rec expr = function
+    | { value = Atom x  } -> show_literal x
+
+    | { value = Form [{ value = Atom (Sym ",") }; x; y] } ->
+      fmt "(%s, %s)" (expr x) (expr y)
+
+    | { value = Form xs } ->
+      fmt "(%s)" @ String.concat " " @ List.map expr xs
+
+    | { value = Func _  } -> "<λ>"
 end
 
 module Expr = struct
@@ -28,21 +37,33 @@ module Expr = struct
 
   module Map = Map.Make(Base)
 
-  let unit      = Atom { data = Unit;    meta = None }
-  let bool x    = Atom { data = Bool x;  meta = None }
-  let str x     = Atom { data = Str x;   meta = None }
-  let int x     = Atom { data = Int x;   meta = None }
-  let sym    x  = Atom { data = Sym x;   meta = None }
-  let list xs   = List { data = xs;      meta = None }
-  let func f    = Func { data = f;       meta = None }
-  let call f xs = List { data = f :: xs; meta = None }
+  let atom x    = { value = Atom x         ; meta = [] }
+  let unit   () = { value = Atom Unit      ; meta = [] }
+  let bool x    = { value = Atom (Bool x)  ; meta = [] }
+  let str  x    = { value = Atom (Str x)   ; meta = [] }
+  let int  x    = { value = Atom (Int x)   ; meta = [] }
+  let sym  x    = { value = Atom (Sym x)   ; meta = [] }
+  let list   xs = { value = Form xs        ; meta = [] }
+  let form   xs = { value = Form xs        ; meta = [] }
+  let func f    = { value = Func f         ; meta = [] }
+  let call f xs = { value = Form (f :: xs) ; meta = [] }
 
-  let atom x    = Atom { data = x;       meta = None }
-  let seq  x y  = call (sym ";") [x; y]
+  let meta x m  = call (sym "meta") [x; m]
+  let pair x y  = call (sym ",")    [x; y]
+  let seq  x y  = call (sym ";")    [x; y]
 
-  let unwrap_str  = function Atom { data = Str x  } -> x | _ -> fail "expression is not a string"
-  let unwrap_sym  = function Atom { data = Sym x  } -> x | _ -> fail "expression is not a symbol"
-  let unwrap_int  = function Atom { data = Int x  } -> x | _ -> fail "expression is not an int"
-  let unwrap_bool = function Atom { data = Bool x } -> x | _ -> fail "expression is not a bool"
+  let unwrap_str  = function { value = Atom Str  x } -> x | _ -> fail "not a string"
+  let unwrap_sym  = function { value = Atom Sym  x } -> x | _ -> fail "not a symbol"
+  let unwrap_int  = function { value = Atom Int  x } -> x | _ -> fail "not an int"
+  let unwrap_bool = function { value = Atom Bool x } -> x | _ -> fail "not a bool"
+  let unwrap_func = function { value = Func      f } -> f | _ -> fail "not a function"
+
+  let is_func = function { value = Func _ } -> true | _ -> false
+
+  let append x y =
+    match x with
+    | { value = Form xs } -> form (xs ++ [y])
+    | atom                -> form [atom; y]
+
 end
 

@@ -230,3 +230,29 @@ module Show = struct
 end
 
 
+;;
+
+module Dict = struct
+  type ('a, 'b) t = ('a * 'b) list
+    [@@deriving show]
+
+  let s = show
+  let find t key =
+    let rec loop = function
+      | [] -> None
+      | (k, v) :: l -> if k = key then Some v else loop l
+    in
+    loop t
+
+  let mem t key = find t key <> None
+
+  let remove t key =
+    List.filter (fun (key', _) -> not (key = key')) t
+
+  let add t key value =
+    (key, value) :: remove t key
+
+  let inverse t = List.map (fun (x, y) -> (y, x)) t
+
+  let map f t = List.map (fun (key, value) -> (key, f value)) t
+end

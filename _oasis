@@ -21,13 +21,21 @@ Executable test_fold
   CompiledObject: best
   BuildDepends:   pratt, elements
 
+
+Executable test_fold_eval
+  Path:           tests/
+  MainIs:         test_fold_eval.ml
+  CompiledObject: best
+  BuildDepends:   pratt, elements
+
 Library pratt
   Path:           src/
   FindlibName:    pratt
   CompiledObject: best
   BuildDepends:   sedlex,
                   elements,
-                  compiler-libs.bytecomp
+                  compiler-libs.bytecomp,
+                  ppx_deriving.std,
   Modules:        Pratt_foundation,
                   Pratt_lexer,
                   Pratt_syntax,

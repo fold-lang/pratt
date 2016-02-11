@@ -120,7 +120,7 @@ let test_quotes () =
   "`f x"          == call (sym "`") [sym "f"; sym "x"];
   "f `x `y"       == call (sym "f") [call (sym "`") [sym "x"]; call (sym "`") [sym "y"]];
   "f `(x + y) `z" == call (sym "f") [call (sym "`") [call (sym "+") [sym "x"; sym "y"]];
-                                   call (sym "`") [sym "z"]];
+                                     call (sym "`") [sym "z"]];
   print_newline ()
 
 let test_bugs () = begin

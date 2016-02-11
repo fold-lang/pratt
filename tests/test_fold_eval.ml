@@ -1,24 +1,26 @@
 
-open Pratt.Syntax
+open Pratt.Env
 open Pratt.Lexer
-open Pratt.Foundation
-open Test_utils
+open Pratt.Syntax
+open Fold.Eval
 
-
-let test_quotes () =
+let test_atom_eval () = begin
   let open Expr in
-  print @ bright_magenta "-- Quotes";
-  "`x"            == fn (sym "`") [sym "x"];
-  "`f x"          == fn (sym "`") [sym "f"; sym "x"];
-  "f `x `y"       == fn (sym "f") [fn (sym "`") [sym "x"]; fn (sym "`") [sym "y"]];
-  "f `(x + y) `z" == fn (sym "f") [fn (sym "`") [fn (sym "+") [sym "x"; sym "y"]];
-                                   fn (sym "`") [sym "z"]];
-  print_newline ()
+  let env0 = Env.empty in
+  assert (eval_expr env0 (int 3) = (env0, int 3));
 
-
-let () = begin
-  test_quotes ();
+  let env1 = Env.add "a" (int 42) env0 in
+  assert (eval_expr env1 (sym "a") = (env1, int 42))
 end
 
+let test_meta_eval () = begin
+  let open Expr in
+  let env0 = Env.empty in
+  assert (eval_expr env0 (Expr.meta (int 1) (unit ())) = (env0, int 1))
+end
 
+let () = begin
+  test_atom_eval ();
+  test_meta_eval ();
+end
 
