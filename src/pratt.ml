@@ -9,37 +9,47 @@ module Env        = Pratt_env
 module Log = Elements.Log
 
 open Pratt_foundation
+open Pure
 open Pratt_lexer
 open Pratt_syntax
-open Pratt_parser
 open Pratt_grammar
 
-type state = {
-    lexer   : lexer;
-    token   : token;
-    grammar : (expr, (expr, state) parser) grammar;
-    rule    : (expr, (expr, state) parser) rule;
-}
+module Parser = Pratt_parser
+
+
+module State = struct
+  type t =
+    { lexer   : lexer;
+      token   : token;
+      grammar : (expr, (expr, state) parser) grammar;
+      rule    : (expr, (expr, state) parser) rule }
+end
+
+module Parser = Pratt_parser.Make(State)
+
+open Parser
+
+
 
 let led_error : expr -> (expr, state) parser =
   fun exp -> get >>= fun { token } ->
-    error @ fmt "%s cannot be used in led position." (show_token token)
+    error ("%s cannot be used in led position." % show_token token)
 
 let nud_error =
   get >>= fun { token } ->
-    error @ fmt "%s cannot be used in nud position." (show_token token)
+    error ("%s cannot be used in nud position." % show_token token)
 
 let (<?>) p label = fun s ->
     match p s with
       | Error _ ->
         Error (match () with
                | () when s.token.value = Sym "EOF" ->
-                 (fmt "%s unexpected end of file while reading %s"
-                       (show_location s.token.location) label)
+                 "%s unexpected end of file while reading %s" %
+                    (show_location s.token.location, label)
                | () when label = (show_literal (Sym "EOF")) ->
-                 (fmt "parsing stopped at %s" (show_token s.token))
-               | () -> (fmt "expected %s but %s found"
-                       label (show_token s.token)))
+                 "parsing stopped at %s" % show_token s.token
+               | () -> "expected %s but %s found" %
+                       (label, show_token s.token))
       | ok -> ok
 
 let advance = get >>= fun s ->
@@ -49,12 +59,12 @@ let advance = get >>= fun s ->
 
 let inspect_token =
   inspect begin fun { token } ->
-    print @ fmt "token: %s" (show_literal token.value)
+    print ("token: %s" % show_literal token.value)
   end
 
 let inspect_grammar =
   inspect begin fun { grammar = g; token = t } ->
-    print @ fmt "grammar(%s) = %s" (show_token t) (show_grammar g)
+    print ("grammar(%s) = %s" % (show_token t, show_grammar g))
   end
 
 let expect x =
@@ -80,49 +90,35 @@ let with_scope s p =
 
 (* TODO: Move the default rule lookup to Grammar. *)
 
-let rec parse_infix' rbp x =
-  get >>= fun { rule; grammar } ->
-    trace (fmt "parse_infix: sym = %s, precedence = %d, rbp = %d, left = %s"
-             (show_literal rule.sym) rule.precedence rbp (Show.expr x));
-    let default_led = !! ((grammar.default rule.sym).led) in
-    let current_led = rule.led || default_led in
-    if rule.precedence > rbp
-      then current_led x >>= parse_infix' rbp
-      else return x
-
 let is_eol rule = (rule.sym = Sym "EOL")
 
 let rec parse_infix precedence left =
   get >>= fun { rule; grammar } -> begin
-    trace (fmt " infix\t%s\t%d\t%d\t%s\t%s"
-             (show_literal rule.sym) rule.precedence precedence
-             (if rule.precedence > precedence then "." else "!")
-             (Show.expr left));
+    trace (" infix\t%s\t%d\t%d\t%s" % (show_literal rule.sym, rule.precedence, precedence, Show.expr left));
 
-    let default = Opt.value_exn (grammar.default rule.sym).led in
-    let parse = rule.led || default in
+    let default = Option.force (grammar.default rule.sym).led in
+    let parse = rule.led or default in
     if rule.precedence > precedence
       then parse left >>= parse_infix precedence
       else return left
   end
 
 let parse_prefix rbp =
-  get >>= fun { rule; grammar } ->
-    trace (fmt "prefix\t%s\t%d\t%d\t"
-           (show_literal rule.sym) rule.precedence rbp);
-    let default_nud = !! ((grammar.default rule.sym).nud) in
-    let current_nud = rule.nud || default_nud in
-    current_nud >>= parse_infix rbp
+  state <- get;
+  let { rule; grammar } = state in
+  trace ("prefix\t%s\t%d\t%d\t" % (show_literal rule.sym, rule.precedence, rbp));
+  let default_nud = Option.force (grammar.default rule.sym).nud in
+  let current_nud = rule.nud or default_nud in
+  left <- current_nud;
+  parse_infix rbp left
 
-let init ~lexer ~grammar =
+let parse ~lexer ~grammar =
   let token = read_token lexer in
-  let rule = lookup_rule grammar token in
-  let s = { lexer; token; grammar; rule } in
-  match run (parse_prefix 0 << expect (Sym "EOF")) s with
+  let rule  = lookup_rule grammar token in
+  let state = { lexer; token; grammar; rule } in
+  match run (parse_prefix 0 << expect (Sym "EOF")) state with
   | Ok (value, _) -> value
   | Error msg -> raise (Failure msg)
-
-
 
 (*
  * Rules Builders
@@ -138,9 +134,24 @@ let unary_postfix sym = rule sym
   ~precedence:70
   ~led:(fun x -> consume sym >> return (Expr.call (Expr.atom sym) [x]))
 
-let binary_infix sym precedence = rule sym ~precedence
-    ~led:(fun x -> consume sym >> parse_prefix precedence >>=
-           fun y -> return (Expr.call (Expr.atom sym) [x; y]))
+let binary_infix sym precedence =
+  rule sym ~precedence ~led:
+    begin%monad fun x ->
+      perform (consume sym);
+      y <- parse_prefix precedence;
+      return (Expr.call (Expr.atom sym) [x; y])
+    end
+
+
+let binary_infix sym precedence =
+  rule sym ~precedence ~led:
+    begin%monad fun x ->
+      perform (consume sym);
+      y <- parse_prefix precedence;
+      return (Expr.call (Expr.atom sym) [x; y])
+    end
+
+
 
 let binary_infix_right sym precedence = rule sym ~precedence
   ~led:(fun x -> consume sym >> parse_prefix (precedence - 1) >>=
@@ -157,7 +168,7 @@ let end_of_line =
     ~led:begin fun x ->
       consume sym >>
       get >>= fun { rule; grammar } ->
-        if Opt.is_some rule.led then
+        if Option.is_some rule.led then
           parse_infix rule.precedence x
           (* parse_infix precedence x *)
         else
@@ -200,7 +211,7 @@ let default sym = rule sym
       parse_prefix 90 >>= fun next_expr ->
       (* TODO: Replace by cons. *)
       let list = match prev_expr with
-        | { value = Form xs } -> Expr.list (xs ++ [next_expr])
+        | { value = Form xs } -> Expr.list (List.append xs [next_expr])
         | _ -> Expr.list [prev_expr; next_expr] in
       return list
     end

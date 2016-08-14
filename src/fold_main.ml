@@ -2,7 +2,7 @@
 module Lang = Fold_lang
 module Eval = Fold_evaluator
 
-open Elements
+open Pure
 
 open Pratt
 open Pratt.Foundation
@@ -11,39 +11,63 @@ open Pratt.Lexer
 open Pratt.Parser
 open Pratt.Env
 
+
 let fold_logo =
   blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
   blue ("    ▐▐     ▗▗   ▐▐    ▗▗▐▐   ") ^ ("|" ^ bright_white "\n") ^
   blue ("  ▝▝▐▐▝▝ ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|" ^ bright_white "  Version 0.0.1-alpha+001 (2015-02-12)\n") ^
   blue ("    ▐▐   ▐▐  ▐▐ ▐▐  ▐▐  ▐▐   ") ^ ("|  " ^ (underline (bright_white "http://fold-lang.org\n"))) ^
   blue ("    ▐▐     ▝▝    ▝▝   ▝▝▝    ") ^ ("|" ^ bright_white "  Type \\? for help.\n") ^
-  blue ("  ▗▐▝                      \n") ^
-  "                           \n"  ^
-  (italic "  \"Simplicity is prerequisite for reliability.\"\n") ^
+  blue ("  ▗▐▝                    \n\n") ^
+  italic "  \"Simplicity is prerequisite for reliability.\"\n" ^
   "      — Edsger W. Dijkstra"
+
+
+let print_value e =
+  print (green " = " ^ start_white ^ (Show.expr e))
+
+
+let read chan =
+  create_lexer_with_channel "<REPL>" chan
 
 
 let rec loop env =
   try
-    print_string (bright_blue "-> " ^ start_white); flush stdout;
-    let lexer = create_lexer_with_channel "<REPL>" stdin in
-    let exp = Pratt.init ~lexer ~grammar:Lang.core_lang in
-    print @ fmt ">> %s" @ Show.expr exp;
-    let (env, value) = Eval.eval env exp in
-    if value <> Expr.unit () then
-      print (Eval.show_value value);
+    print (bright_blue "->" ^ start_white) ~terminator:" " ~flush:true;
+    let expr  = Pratt.parse ~lexer:(read stdin) ~grammar:Lang.core_lang in
+    let (env, value) = Eval.eval env expr in
+    if value <> Expr.unit ()
+      then print_value value;
     loop env
-  with
-  | Failure msg
-  | Invalid_argument msg ->
-    print (bright_red " * Error" ^ ": " ^ msg);
-    flush stdout;
+  with exn ->
+    print (bright_red " * Error" ^ ": " ^ (Exn.show exn)) ~flush:true;
     loop env
-  | exn ->
-    let msg = Exn.to_string exn in
-    print (bright_red " * Error" ^ ": " ^ msg);
-    flush stdout;
-    loop env
+
+
+let is_macro_fn = function
+    | [{ value = Func _; meta }] ->
+      let r = Assoc.find meta (Sym "macro") = Some (Bool true) in
+      Expr.bool r
+    | [_] -> Expr.bool false
+    | _ -> invalid_arg "function expects 2 arguments"
+
+
+let is_macro = {
+    value = Func is_macro_fn;
+    meta = [Sym "macro",  Bool true] }
+
+
+let get_meta_fn = function
+    | [{ meta }] -> Expr.form (List.map (fun (k, v) -> Expr.(pair (atom k) (atom v))) meta)
+    | _ -> invalid_arg "function expects 2 arguments"
+
+
+let get_meta = {
+    value = Func get_meta_fn;
+    meta = [Sym "macro",  Bool true] }
+
+
+(* TODO: Define + as a macro with 2 args: 2 + 2, and for a list: reduce? *)
 
 let factorial i =
   let rec loop acc i =
@@ -51,27 +75,9 @@ let factorial i =
     else loop (i * acc) (i - 1) in
   loop 1 i
 
-let is_macro_fn = function
-    | [{ value = Func _; meta }] ->
-      let r = Dict.find meta (Sym "macro") = Some (Bool true) in
-      Expr.bool r
-    | [_] -> Expr.bool false
-    | _ -> invalid_arg "function expects 2 arguments"
-let is_macro = {
-    value = Func is_macro_fn;
-    meta = [Sym "macro",  Bool true] }
-
-let get_meta_fn = function
-    | [{ meta }] -> Expr.form (List.map meta ~f:(fun (k, v) -> Expr.(pair (atom k) (atom v))))
-    | _ -> invalid_arg "function expects 2 arguments"
-let get_meta = {
-    value = Func get_meta_fn;
-    meta = [Sym "macro",  Bool true] }
-
-(* TODO: Define + as a macro with 2 args: 2 + 2, and for a list: reduce? *)
 
 let env =
-  Env.empty
+  Env.empty ()
   |> Env.add "T"               (Expr.atom (Bool true))
   |> Env.add "F"               (Expr.atom (Bool false))
   |> Env.add "list"            (Expr.func (fun xs -> Expr.list xs))
@@ -85,9 +91,8 @@ let env =
   |> Env.add "meta"            get_meta
 
 let env =
-  env |> Env.add "eval"  (Expr.func (function [expr] -> snd @ Eval.eval env expr
+  env |> Env.add "eval"  (Expr.func (function [expr] -> snd (Eval.eval env expr)
                                             | _ -> invalid_arg "eval expects one argument"))
-
 
 let () = begin
   print (end_color ^ "\n" ^ fold_logo ^ "\n");

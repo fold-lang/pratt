@@ -2,56 +2,68 @@
 open Pratt_foundation
 open Pratt_syntax
 
-type ('a, 's) parser = 's -> ('a * 's) result
+(* type ('a, 's) parser = 's -> ('a * 's, string) result *)
 
-let run p     = fun s -> p s
-let get       = fun s -> Ok (s, s)
-let put s     = fun _ -> Ok ((), s)
-let zero      = fun s -> Ok ((), s)
+module Make(S : sig type t end) = struct
+  type state = S.t
 
-let error msg = fun _ -> Error msg
+  type error =
+    | Internal of string
 
-let return x  = fun s -> Ok (x, s)
+  type 'a t = state -> ('a * state, error) result
 
-let (>>=) p f = fun s ->
-    match p s with
-    | Ok (x, s') -> (f x) s'
-    | Error msg  -> Error msg
+  let get =
+    fun state -> Ok (state, state)
 
-let (>>|) p f = fun s ->
-    match p s with
-    | Ok (x, s') -> Ok ((f x), s')
-    | Error msg  -> Error msg
+  let put state =
+    fun _ -> Ok ((), state)
 
-let (>>) p q = p >>= fun _ -> q
-let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
+  let zero =
+    fun s -> Ok ((), s)
 
-let (<|>) p q = fun s ->
-  match p s with
-  | Error m -> q s
-  | ok -> ok
+  let error msg =
+    fun _ -> Error (Internal msg)
 
-let inspect f = get >>= fun s ->
+  let return x =
+    fun s -> Ok (x, s)
+
+  let (>>=) p f =
+    fun s ->
+      match p s with
+      | Ok (x, s') -> (f x) s'
+      | Error e    -> Error e
+
+  let (>>) p q = p >>= fun _ -> q
+  let (<<) p q = p >>= fun x -> q >>= fun _ -> return x
+
+  let (<|>) p q =
+    fun s ->
+      match p s with
+      | Error m -> q s
+      | Ok x    -> Ok x
+
+  let inspect f = get >>= fun s ->
     f s; put s
 
-let between op ed x = op >> x << ed
+  let between op ed x = op >> x << ed
 
-let option x p = p <|> return x
-let optional p = option () (p >> return ())
+  let option x p = p <|> return x
+  let optional p = option () (p >> return ())
 
-let rec skip_many x = optional (x >>= fun _ -> skip_many x)
+  let rec skip_many x = optional (x >>= fun _ -> skip_many x)
 
-let rec many p =
+  let rec many p =
     option [] (p >>= fun x  -> many p
                  >>= fun xs -> return (x :: xs))
 
-let satisfy test =
+  let satisfy test =
     get >>= fun x ->
-    if (test x) then return x
+      if (test x) then return x
                 else error "could not satisfy test"
 
-let exactly x  = satisfy ((=) x)
-let one_of  xs = satisfy (fun x -> List.mem x xs)
-let none_of xs = satisfy (fun x -> not (List.mem x xs))
-let range s e  = satisfy (fun x -> s <= x && x <= e)
+  let exactly x  = satisfy ((=) x)
+  let one_of  xs = satisfy (fun x -> List.mem x xs)
+  let none_of xs = satisfy (fun x -> not (List.mem x xs))
+  let range s e  = satisfy (fun x -> s <= x && x <= e)
+end
 

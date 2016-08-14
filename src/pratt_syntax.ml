@@ -1,7 +1,9 @@
 
 open Pratt_foundation
+open Pure
 open Pratt_env
 open Pratt_lexer
+
 
 type value =
   | Atom of literal
@@ -9,7 +11,7 @@ type value =
   | Func of (expr list -> expr)
   [@@deriving show]
 
-and expr = { value : value; meta : (literal, literal) Dict.t }
+and expr = { value : value; meta : (literal, literal) Assoc.t }
   [@@deriving show]
 
 module Show = struct
@@ -18,10 +20,10 @@ module Show = struct
     | { value = Atom x  } -> show_literal x
 
     | { value = Form [{ value = Atom (Sym ",") }; x; y] } ->
-      fmt "(%s, %s)" (expr x) (expr y)
+      "(%s, %s)" % (expr x, expr y)
 
     | { value = Form xs } ->
-      fmt "(%s)" @ String.concat " " @ List.map expr xs
+      "(%s)" % String.concat " " (List.map expr xs)
 
     | { value = Func _  } -> "<λ>"
 end
@@ -62,7 +64,7 @@ module Expr = struct
 
   let append x y =
     match x with
-    | { value = Form xs } -> form (xs ++ [y])
+    | { value = Form xs } -> form (List.append xs [y])
     | atom                -> form [atom; y]
 
 end

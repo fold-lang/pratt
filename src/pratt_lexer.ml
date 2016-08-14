@@ -1,5 +1,6 @@
 
 open Pratt_foundation
+open Pure
 
 (* -- Literal Type -- *)
 
@@ -14,13 +15,13 @@ type literal =
   [@@deriving show]
 
 let show_literal = function
-  | Bool  x -> fmt "%s"     (if x then "T" else "F")
-  | Char  x -> fmt "'%c'"   x
-  | Float x -> fmt "%f"     x
-  | Int   x -> fmt "%d"     x
-  | Str   x -> fmt "\"%s\"" x
-  | Sym   x -> fmt "%s"     x
-  | Unit    -> fmt "()"
+  | Bool  x -> "%s"     % if x then "T" else "F"
+  | Char  x -> "'%c'"   % x
+  | Float x -> "%f"     % x
+  | Int   x -> "%d"     % x
+  | Str   x -> "\"%s\"" % x
+  | Sym   x -> "%s"     % x
+  | Unit    -> "()"
 
 (* -- Location -- *)
 
@@ -35,7 +36,7 @@ let empty_location =
     length   = 0 }
 
 let show_location x =
-  fmt "line %d, column %d" x.line x.column
+  "line %d, column %d" % (x.line, x.column)
 
 (* -- Token -- *)
 module Separation = struct
@@ -74,7 +75,7 @@ type token =
     location          : location }
 
 let show_token tok =
-    fmt "%s: %s" (show_location tok.location) (show_literal tok.value)
+    "%s: %s" % (show_location tok.location, show_literal tok.value)
 
 
 (* -- Lexer -- *)
@@ -125,10 +126,10 @@ let current_location lexer =
     length = Sedlexing.lexeme_length lexer.lexbuf }
 
 let lexer_error lexer msg =
-  raise (Failure (fmt "%s: %s: '%s'."
-                    (show_location (current_location lexer))
-                    msg
-                    (current_lexeme lexer)))
+  raise (Failure ("%s: %s: '%s'." %
+                    (show_location (current_location lexer),
+                     msg,
+                     current_lexeme lexer)))
 
 (* FIXME: Ensure line numbers are incremented in all cases. *)
 let rec read_literal ({lexbuf} as lexer) =
@@ -141,17 +142,21 @@ let rec read_literal ({lexbuf} as lexer) =
             Sym (current_lexeme lexer)
   | ')' -> begin
       lexer.group_counter <- (lexer.group_counter - 1);
-      match lexer.group_counter <~> 0 with
+
+      match compare' lexer.group_counter 0 with
       | `EQ | `GT -> Sym (current_lexeme lexer)
       | `LT -> lexer_error lexer "unbalanced parenthesis"
+
     end
   | '\n' -> begin
       increment_line lexer;
-      match lexer.group_counter <~> 0 with
+
+      match compare' lexer.group_counter 0 with
       (* EOL is treated as EOF (input termination) inside the REPL. *)
       | `EQ -> if lexer.filename = "<REPL>" then Sym "EOF" else Sym "EOL"
       | `GT -> read_literal lexer
       | `LT -> lexer_error lexer "unbalanced parenthesis"
+
     end
   | symbol_literal -> Sym (current_lexeme lexer)
   | Plus identifier_char -> Sym (current_lexeme lexer)

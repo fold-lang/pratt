@@ -34,6 +34,9 @@ Library pratt
   CompiledObject: best
   BuildDepends:   sedlex,
                   elements,
+                  pure,
+                  ppx_format,
+                  ppx_monad,
                   compiler-libs.bytecomp,
                   ppx_deriving.std,
   Modules:        Pratt_foundation,

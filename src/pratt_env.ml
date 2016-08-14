@@ -1,18 +1,18 @@
 
-open Elements
+open Pure
 
 module Scope = Map.Make(String)
 
 type 'a env = {
-  data : 'a Scope.t;
-  next : 'a env option;
+  mutable data : 'a Scope.t;
+          next : 'a env option;
 }
 
 module Env = struct
   type 'a t = 'a env
 
   let make next = { next;        data = Scope.empty }
-  let empty     = { next = None; data = Scope.empty }
+  let empty  () = { next = None; data = Scope.empty }
 
   let add name value env =
     { env with data = Scope.add name value env.data }

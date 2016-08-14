@@ -1,7 +1,23 @@
 
-open Elements
+open Pure
+
+
+
+module V2 = struct
+  module Rule : sig
+    type
+  end = struct
+
+  end
+end
+
+
+
+
 open Pratt_foundation
 open Pratt_lexer
+
+module Log = Elements.Log
 
 (** A grammar rule attached to a token. *)
 type ('e, 'p) rule = {
@@ -33,10 +49,10 @@ module Scope = struct
   }
 
   let show scope =
-    fmt "{ precedence = [%s];\n  led  = [%s];\n  prefix = [%s] }"
-     (join ", " (List.map ~f:fst (Map.bindings scope.precedence)))
-     (join ", " (List.map ~f:fst (Map.bindings scope.led)))
-     (join ", " (List.map ~f:fst (Map.bindings scope.nud)))
+    "{ precedence = [%s];\n  led  = [%s];\n  prefix = [%s] }" %
+     (String.concat ", " (List.map fst (Map.bindings scope.precedence)),
+      String.concat ", " (List.map fst (Map.bindings scope.led)),
+      String.concat ", " (List.map fst (Map.bindings scope.nud)))
 
   let is_defined_led scope name =
     Map.mem name scope.led
@@ -61,12 +77,13 @@ module Scope = struct
     let scope'1 = { scope with precedence = Map.add name rule.precedence scope.precedence } in
     let scope'2 = match rule.led with
       | Some led -> (if Map.mem name scope.led then
-                       print @ fmt "Redefinition of led symbol %s" name);
+                       print ("Redefinition of led symbol %s" % name));
         { scope'1 with led = Map.add name led scope.led }
+      | None -> scope'1 in
       | None -> scope'1 in
     let scope'3 = match rule.nud with
       | Some nud -> (if Map.mem name scope.nud then
-                       print @ fmt "Redefinition of nud symbol %s" name);
+                       print ("Redefinition of nud symbol %s" % name));
         { scope'2 with nud = Map.add name nud scope.nud }
       | None -> scope'2 in
     scope'3
@@ -74,7 +91,7 @@ module Scope = struct
   let define_led rule scope : ('e, 'p) t =
     let name = show_literal rule.sym in
     if Map.mem name scope.led then
-       Log.warning (fmt "Redefinition of led symbol `%s`." name);
+       warning ("Redefinition of led symbol `%s`." % name);
     match rule.led with
     | Some led -> { scope with precedence = Map.add name rule.precedence scope.precedence;
                                led = Map.add name led      scope.led }
@@ -83,7 +100,7 @@ module Scope = struct
   let define_nud rule scope : ('e, 'p) t =
     let name = show_literal rule.sym in
     if Map.mem name scope.nud then
-       Log.warning (fmt "Redefinition of nud symbol `%s`." name);
+       warning ("Redefinition of nud symbol `%s`." % name);
     match rule.nud with
     | Some nud -> { scope with nud = Map.add name nud scope.nud }
     | None -> raise (Invalid_argument "rule has no nud code")
@@ -100,7 +117,7 @@ let grammar ~main ~default = {
 }
 
 let show_grammar g =
-  join "\n" (List.map ~f:Scope.show g.env)
+  String.concat "\n" (List.map Scope.show g.env)
 
 let rec lookup_led g name =
   match g.env with
@@ -126,7 +143,7 @@ let rec lookup_precedence g name =
 let lookup_rule g t =
   let sym  = t.value in
   let name = show_literal sym in
-  let precedence = lookup_precedence g name || (g.default sym).precedence in
+  let precedence = lookup_precedence g name or (g.default sym).precedence in
   let led = lookup_led g name in
   let nud = lookup_nud g name in
   (* let led = Some (match lookup_led g name with *)

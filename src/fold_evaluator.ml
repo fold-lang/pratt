@@ -1,28 +1,33 @@
 
-open Elements
 open Pratt.Foundation
+open Pure
 open Pratt.Lexer
 open Pratt.Syntax
 open Pratt.Grammar
 open Pratt.Env
 open Fold_lang
 
+
+let list_reduce f l =
+  match l with
+  | x :: xs -> Some (List.fold_left f x xs)
+  | [] -> None
+
 (* module Log = struct let info x = () end *)
 
-let show_env x = Show.assoc id Show.expr (Scope.to_assoc x.data)
+let show_env x =
+  undefined ()
+  (* Show.assoc id Show.expr (Scope.to_assoc x.data) *)
 
 let quit () =
   print (yellow " ! " ^ start_white ^ "Exiting...");
   exit 0
 
-let show_value x =
-  green " = " ^ start_white ^ (Show.expr x)
-
-let bin_numeric_function f = Expr.func @ fun args ->
-  let args_num = (List.map ~f:Expr.unwrap_int args) in
+let bin_numeric_function f = Expr.func <| fun args ->
+  let args_num = (List.map Expr.unwrap_int args) in
   Expr.int (if List.length args < 2
-            then List.fold ~init:0 ~f args_num
-            else List.reduce_exn   ~f args_num)
+            then List.fold_left f 0 args_num
+            else Option.force (list_reduce f args_num))
 
 let unary_numeric_function f = Expr.func (function
   | [arg] ->
@@ -30,7 +35,7 @@ let unary_numeric_function f = Expr.func (function
     Expr.int (f num)
   | _ -> fail "function expects 1 argument.")
 
-let cons = Expr.func @ fun args ->
+let cons = Expr.func <| fun args ->
   match args with
   | [x; { value = Form xs }] -> Expr.list (x :: xs)
   | [_; _] -> invalid_arg "second argument must be a term"
@@ -47,21 +52,21 @@ let is_macro_call env expr =
   let r = match expr with
   | { value = Form ({ value = Atom (Sym name) } :: args) } ->
     begin
-      match guard (Env.get name) env with
+      match Option.catch (fun () -> Env.get name env) with
       | Some { value = Func macro; meta } ->
-        Dict.find meta (Sym "macro") = Some (Bool true)
+        Assoc.find meta (Sym "macro") = Some (Bool true)
       | Some _ | None -> false
     end
   | _ -> false in
-  Log.info @ fmt "is_macro_call: %b" r;
+  info ("is_macro_call: %b" % r);
   r
 
 let rec macroexpand env expr =
-  Log.info @ fmt "macroexpand: expr = %s" (Show.expr expr);
+  info ("macroexpand: expr = %s" % Show.expr expr);
   if is_macro_call env expr
   then match expr with
     | { value = Form ({ value = Atom (Sym name) } :: args) } ->
-      begin match guard (Env.get name) env with
+      begin match Option.catch (fun () -> Env.get name env) with
         | Some { value = Func f } ->
           macroexpand env (f args)
         | _ -> expr
@@ -70,11 +75,11 @@ let rec macroexpand env expr =
   else expr
 
 let rec eval_expr env expr =
-  Log.info @ fmt "eval_expr: expr = %s" @ Show.expr expr;
+  info ("eval_expr: expr = %s" % Show.expr expr);
   match expr with
   | { value = Atom (Sym x) } -> env, Env.get x env
   | { value = Form xs } ->
-    let value = Form (List.map ~f:(fun x -> snd (eval env x)) xs) in
+    let value = Form (List.map (fun x -> snd (eval env x)) xs) in
     env, { expr with value }
   | _ -> env, expr
 
@@ -92,12 +97,12 @@ and eval env expr =
     (Env.add name value env, Expr.unit ())
 
   | { value = Form [{ value = Atom (Sym "macro") }; { value = Atom (Sym name) }; body] } ->
-    Log.info @ fmt "eval: macro definition: %s" name;
+    info ("eval: macro definition: %s" % name);
     let env', body' = eval env body in
     let macro =
       match body' with
       | { value = Func f; meta = meta } ->
-        { value = Func f; meta = Dict.add meta (Sym "macro") (Bool true) }
+        { value = Func f; meta = Assoc.add meta (Sym "macro") (Bool true) }
       | _ -> invalid_arg "macro value must be a function" in
     (Env.add name macro env, Expr.unit ())
 
@@ -110,7 +115,7 @@ and eval env expr =
            let env', exp' = eval env exp in
            bind_pairs (Env.add name exp' env') more
          | e :: _ :: _ ->
-           invalid_arg (fmt "invalid binding expression %s" (Show.expr e))
+           invalid_arg ("invalid binding expression %s" % Show.expr e)
          | _ :: [] ->
            invalid_arg "let requires an even number of bindings"
          | [] -> env
@@ -119,8 +124,10 @@ and eval env expr =
     eval env' body
 
   | { value = Form ({ value = Atom (Sym "do") } :: args) } ->
-    List.fold_left args ~init:(env, Expr.unit ())
-      ~f:(fun (env, r) exp -> eval env exp)
+    List.fold_left
+      (fun (env, r) exp -> eval env exp)
+      (env, Expr.unit ())
+      args
 
   | { value = Form [{ value = Atom (Sym "if") }; c; t; f] } ->
     let (env, c') = eval env c in
@@ -166,16 +173,16 @@ and eval env expr =
   | { value = Form ({ value = Atom (Sym "\\") } :: args) } ->
     begin match args with
       | [{ value = Atom (Sym "q") }] -> quit ()
-      | [{ value = Atom (Sym "env") }] -> Log.info @ show_env env; (env, Expr.unit ())
+      | [{ value = Atom (Sym "env") }] -> info <| show_env env; (env, Expr.unit ())
       | [{ value = Atom (Sym "i") }; x] ->
-        print (show_value x);
+        print (Show.expr x);
         (env, Expr.unit ())
       | { value = Atom (Sym "?") } :: args
       | { value = Atom (Sym "i") } :: args -> fail "\\i expects one argument"
       | { value = Atom (Sym "h") } :: args ->
         print "Available directives: \\h, \\i, \\q.";
         (env, Expr.unit ())
-      | [{ value = Atom (Sym unknown) }] -> fail (fmt "Unknown directive: %s" unknown)
+      | [{ value = Atom (Sym unknown) }] -> fail ("Unknown directive: %s" % unknown)
       | _ -> fail "Unknown directive, use \\h for help"
     end
 
@@ -186,10 +193,10 @@ and eval env expr =
   | { value = Form _ } ->
     begin match eval_expr env expanded_expr with
       | env', { value = Form ({ value = Func f } :: args) } ->
-        Log.info @ fmt "eval: function application";
+        info "eval: function application";
         env', f args
       | _, exp ->
-        invalid_arg @ fmt "%s is not a function, cannot be applied" (Show.expr exp)
+        invalid_arg ("%s is not a function, cannot be applied" % Show.expr exp)
     end
 
   | _ -> eval_expr env expanded_expr

@@ -1,9 +1,9 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6bad06feb062b3548a71113e0229153e)
+# DO NOT EDIT (digest: de067cc90c06846763a447dc55c7d13f)
 version = "0.1.0"
 description =
 "Top down operator precedence parser (also known as Pratt parser)."
-requires = "sedlex compiler-libs"
+requires = "sedlex elements compiler-libs.bytecomp ppx_deriving.std "
 archive(byte) = "pratt.cma"
 archive(byte, plugin) = "pratt.cma"
 archive(native) = "pratt.cmxa"

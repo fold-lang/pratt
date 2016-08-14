@@ -72,13 +72,14 @@ let block start_sym =
             -> Expr.form args, body
           | { value = Form [{ value = Atom (Sym ";") }; { value = Atom (Sym name) }; body] } ->
             Expr.form [Expr.sym name], body
-          | _ -> raise (Failure (fmt "bad %s syntax" (show_literal start_sym))) in
+          | _ -> raise (Failure ("bad %s syntax" % show_literal start_sym)) in
         (* TODO: Add cases to catch common syntax errors. *)
         pop_scope >>
         consume end_sym >>
         return (Expr.form [Expr.atom start_sym; args; body])
       end
     end
+
 
 let quasiquote =
   let quote_sym = Sym "`" in
@@ -88,11 +89,12 @@ let quasiquote =
       consume quote_sym >>
       parse_prefix 90 >>= fun next_expr ->
       let quoted_exp = Expr.form [Expr.atom quote_sym; next_expr] in
-      return @ Expr.append prev_expr quoted_exp
+      return (Expr.append prev_expr quoted_exp)
     end
     ~nud:begin
       consume quote_sym >> return (Expr.form [Expr.atom quote_sym])
     end
+
 
 let quote =
   let quote_sym = Sym "'" in
@@ -102,7 +104,7 @@ let quote =
       consume quote_sym >>
       parse_prefix 90 >>= fun next_expr ->
       let quoted_exp = Expr.form [Expr.atom quote_sym; next_expr] in
-      return @ Expr.append prev_expr quoted_exp
+      return (Expr.append prev_expr quoted_exp)
     end
     ~nud:begin
       consume quote_sym >> return (Expr.form [Expr.atom quote_sym])
