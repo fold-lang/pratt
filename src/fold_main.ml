@@ -11,6 +11,8 @@ open Pratt.Lexer
 open Pratt.Parser
 open Pratt.Env
 
+module List = ListLabels
+
 let fold_logo =
   blue ("     ▗▐▝        ▐▐      ▐▐   ") ^ ("|" ^ bright_white "  A modern pragmatic functional language.\n") ^
   blue ("    ▐▐     ▗▗   ▐▐    ▗▗▐▐   ") ^ ("|" ^ bright_white "\n") ^
@@ -25,9 +27,11 @@ let fold_logo =
 
 let rec loop env =
   try
-    print_string (bright_blue "-> " ^ start_white); flush stdout;
+    print_string (bright_blue "-> " ^ start_white);
+    flush_all ();
     let lexer = create_lexer_with_channel "<REPL>" stdin in
     let exp = Pratt.init ~lexer ~grammar:Lang.core_lang in
+    flush_all ();
     print @ fmt ">> %s" @ Show.expr exp;
     let (env, value) = Eval.eval env exp in
     if value <> Expr.unit () then
@@ -40,7 +44,7 @@ let rec loop env =
     flush stdout;
     loop env
   | exn ->
-    let msg = Exn.to_string exn in
+    let msg = Control.Exn.to_string exn in
     print (bright_red " * Error" ^ ": " ^ msg);
     flush stdout;
     loop env

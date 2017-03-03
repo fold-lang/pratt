@@ -7,6 +7,19 @@ open Pratt.Grammar
 open Pratt.Env
 open Fold_lang
 
+module List = struct
+  include ListLabels
+
+  let reduce l ~f = match l with
+    | [] -> None
+    | hd :: tl -> Some (fold_left ~init:hd ~f tl)
+
+  let reduce_exn l ~f =
+    match reduce l ~f with
+    | None -> raise (Invalid_argument "List.reduce_exn")
+    | Some v -> v
+end
+
 (* module Log = struct let info x = () end *)
 
 let show_env x = Show.assoc id Show.expr (Scope.to_assoc x.data)
@@ -21,7 +34,7 @@ let show_value x =
 let bin_numeric_function f = Expr.func @ fun args ->
   let args_num = (List.map ~f:Expr.unwrap_int args) in
   Expr.int (if List.length args < 2
-            then List.fold ~init:0 ~f args_num
+            then List.fold_left ~init:0 ~f args_num
             else List.reduce_exn   ~f args_num)
 
 let unary_numeric_function f = Expr.func (function

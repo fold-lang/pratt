@@ -18,7 +18,7 @@ module Env = struct
     { env with data = Scope.add name value env.data }
 
   let add_many env bindings =
-    List.fold_left bindings ~init:env
+    List.fold bindings ~init:env
       ~f:(fun env (n, v) -> add n v env)
 
   let rec find env name =

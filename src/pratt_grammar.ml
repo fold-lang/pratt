@@ -1,4 +1,6 @@
 
+module L = List
+
 open Elements
 open Pratt_foundation
 open Pratt_lexer
@@ -34,9 +36,9 @@ module Scope = struct
 
   let show scope =
     fmt "{ precedence = [%s];\n  led  = [%s];\n  prefix = [%s] }"
-     (join ", " (List.map ~f:fst (Map.bindings scope.precedence)))
-     (join ", " (List.map ~f:fst (Map.bindings scope.led)))
-     (join ", " (List.map ~f:fst (Map.bindings scope.nud)))
+     (join ", " (L.map fst (Map.bindings scope.precedence)))
+     (join ", " (L.map fst (Map.bindings scope.led)))
+     (join ", " (L.map fst (Map.bindings scope.nud)))
 
   let is_defined_led scope name =
     Map.mem name scope.led
@@ -100,7 +102,7 @@ let grammar ~main ~default = {
 }
 
 let show_grammar g =
-  join "\n" (List.map ~f:Scope.show g.env)
+  join "\n" (L.map Scope.show g.env)
 
 let rec lookup_led g name =
   match g.env with
