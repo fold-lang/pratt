@@ -2,8 +2,8 @@
 
 (executable
   ((name Test_parser)
-   (libraries (pratt pure fmt unix))
-   (flags (:standard -open Pure))))
+   (libraries (pratt pure fmt unix astring))
+   (flags (:standard -open Pure -open Astring))))
 
 (alias
  ((name runtest)
