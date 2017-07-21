@@ -1,8 +1,0 @@
-
-get_meta :: Code (a, b) -> b?
-add_meta :: Code a -> Code b -> Code (a, b)
-
-assert (get_meta 42 = None)
-assert (get_meta (add_meta 42 "universe") = Some "universe")
-assert (add_meta 42 "universe" = 42)
-
