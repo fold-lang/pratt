@@ -1,0 +1,13 @@
+(jbuild_version 1)
+
+(executable
+  ((name Test_parser)
+   (libraries (pratt pure fmt unix))
+   (flags (:standard -open Pure))))
+
+(alias
+ ((name runtest)
+  (package pratt)
+  (deps (Test_parser.exe))
+  (action (run ${<}))))
+

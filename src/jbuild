@@ -1,0 +1,8 @@
+(jbuild_version 1)
+
+(library
+ ((name pratt)
+  (modules (Parser))
+  (libraries (pure fmt iter))
+  (flags (:standard -open Pure))))
+

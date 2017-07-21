@@ -1,0 +1,7 @@
+B ../_build/default/src
+FLG -open Pratt -w -40 -open Pure
+PKG fmt
+PKG iter
+PKG pure
+PKG result
+PKG uchar

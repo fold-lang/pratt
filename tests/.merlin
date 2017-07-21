@@ -1,0 +1,10 @@
+B ../_build/default/src
+B ../_build/default/tests
+FLG -w -40 -open Pure
+PKG fmt
+PKG iter
+PKG pure
+PKG result
+PKG uchar
+PKG unix
+S ../src
