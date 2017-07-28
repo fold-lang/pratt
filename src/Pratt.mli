@@ -8,13 +8,14 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *)
 
 type 't error =
-  | Unexpected_token of { expected : 't; actual : 't }
-  | Unexpected_end   of { expected : 't }
-  | Failed_satisfy   of 't option
-  | Invalid_infix    of 't
-  | Invalid_prefix   of 't
+  | Unexpected     of { expected : 't option; actual : 't option }
+  | Invalid_infix  of 't
+  | Invalid_prefix of 't
   | Empty
 (** The type of errors for tokens of type ['a]. *)
+
+val unexpected : ?expected : 't -> ?actual : 't -> unit -> 't error
+(** [unexpected ~actual ~expected ()] is the [Unexpected] error. *)
 
 val error_to_string : 't printer -> 't error -> string
 (** [error_to_string token_pp e] is a human-readable representation of [e]. *)
@@ -77,6 +78,9 @@ val some : ('t, 'a) parser -> ('t, ('a * 'a list)) parser
 val optional : ('t, 'a) parser -> ('t, unit) parser
 (** [optional p] tries to optionally parse the input with parser [p] without
     returning its output. *)
+
+val current : ('t, 't) parser
+(** [current] is the parser that produces the current token as the result. *)
 
 val expect : 't -> ('t, 't) parser
 (** [expect token] checks if the current token in the input is equal to [token]

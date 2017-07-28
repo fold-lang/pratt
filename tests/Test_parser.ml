@@ -32,8 +32,8 @@ let test_error () =
 let test_expect () =
   let (==>) = test (P.expect 'a') in
   T.group "Parser.expect" [
-    ""    ==> Error P.(Unexpected_end { expected = 'a' });
-    "x"   ==> Error P.(Unexpected_token { expected = 'a'; actual = 'x'});
+    ""    ==> Error P.(unexpected ~expected: 'a' ());
+    "x"   ==> Error P.(unexpected ~expected: 'a' ~actual: 'x' ());
     "a"   ==> Ok 'a';
     "abc" ==> Ok 'a';
   ]
@@ -42,17 +42,17 @@ let test_exactly () =
   let (==>) (x, input) = test (P.exactly x) input in
   T.group "Parser.exactly" [
     ('x', "x") ==> Ok 'x';
-    ('x', "y") ==> Error P.(Unexpected_token { expected = 'x'; actual = 'y' });
-    ('x', "")  ==> Error P.(Unexpected_end { expected = 'x' });
+    ('x', "y") ==> Error P.(unexpected ~expected:'x' ~actual:'y' ());
+    ('x', "")  ==> Error P.(unexpected ~expected:'x' ());
   ]
 
 let test_satisfy () =
   let (==>) = test (P.satisfy Char.Ascii.is_upper) in
   T.group "Parser.satisfy is_upper" [
     "A" ==> Ok 'A';
-    ""  ==> Error P.(Failed_satisfy None);
-    "0" ==> Error P.(Failed_satisfy (Some '0'));
-    "a" ==> Error P.(Failed_satisfy (Some 'a'));
+    ""  ==> Error P.(unexpected ());
+    "0" ==> Error P.(unexpected ~actual:'0' ());
+    "a" ==> Error P.(unexpected ~actual:'a' ());
   ]
 
 let test_any () =
@@ -61,17 +61,17 @@ let test_any () =
     "x" ==> Ok 'x';
     "0" ==> Ok '0';
     "?" ==> Ok '?';
-    ""  ==> Error P.(Failed_satisfy None);
+    ""  ==> Error P.(unexpected ());
   ]
 
 let test_from () =
   let (==>) (options, input) = test (P.from options) input in
   T.group "Parser.from" [
-    ([], "x")         ==> Error P.(Failed_satisfy (Some 'x'));
+    ([], "x")         ==> Error P.(unexpected ~actual:'x' ());
     (['x'], "x")      ==> Ok 'x';
     (['x'; 'y'], "y") ==> Ok 'y';
-    (['x'; 'y'], "z") ==> Error P.(Failed_satisfy (Some 'z'));
-    ([],  "")         ==> Error P.(Failed_satisfy None);
+    (['x'; 'y'], "z") ==> Error P.(unexpected ~actual:'z' ());
+    ([],  "")         ==> Error P.(unexpected ());
   ]
 
 let () = begin

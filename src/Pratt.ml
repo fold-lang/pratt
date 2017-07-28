@@ -1,21 +1,22 @@
 
 type 't error =
-  | Unexpected_token of { expected : 't; actual : 't }
-  | Unexpected_end   of { expected : 't }
-  | Failed_satisfy   of 't option
-  | Invalid_infix    of 't
-  | Invalid_prefix   of 't
+  | Unexpected     of { expected : 't option; actual : 't option }
+  | Invalid_infix  of 't
+  | Invalid_prefix of 't
   | Empty
 
+let unexpected ?expected ?actual () =
+  Unexpected { expected; actual }
+
 let error_to_string pp_token = function
-  | Unexpected_token { expected; actual } ->
-    Fmt.strf "Syntax error: expected '%a' but got '%a'" pp_token expected pp_token actual
-  | Unexpected_end { expected } ->
-    Fmt.strf "Syntax error: unexpected end of file while parsing '%a'" pp_token expected
-  | Failed_satisfy (Some actual) ->
-    Fmt.strf "Syntax error: unexpected token '%a'" pp_token actual
-  | Failed_satisfy None ->
+  | Unexpected { expected = Some t1; actual = Some t2 } ->
+    Fmt.strf "Syntax error: expected '%a' but got '%a'" pp_token t1 pp_token t2
+  | Unexpected  { expected = Some t; actual = None } ->
+    Fmt.strf "Syntax error: unexpected end of file while parsing '%a'" pp_token t
+  | Unexpected { expected = None; actual = None } ->
     Fmt.strf "Syntax error: unexpected end of file"
+  | Unexpected { expected = None; actual = Some t } ->
+    Fmt.strf "Syntax error: unexpected token '%a'" pp_token t
   | Invalid_infix token ->
     Fmt.strf "Syntax error: token '%a' cannot be used in prefix postion" pp_token token
   | Invalid_prefix token ->
@@ -24,20 +25,20 @@ let error_to_string pp_token = function
     Fmt.strf "Syntax error: empty parser result"
 
 let pp_error pp_token ppf = function
-  | Unexpected_token { expected; actual } ->
-    Fmt.pf ppf "@[<2>Unexpected_token@ {@ expected =@ @[%a@];@ actual =@ @[%a@] }@]"
-      pp_token expected pp_token actual
-  | Unexpected_end { expected } ->
-    Fmt.pf ppf "@[<2>Unexpected_end@ {@ expected =@ @[%a@] }@]" pp_token expected
-  | Failed_satisfy token_opt ->
-    Fmt.pf ppf "@[<2>Failed_satisfy@ @[%a@]@]" (Fmt.option pp_token) token_opt
+  | Unexpected { expected; actual } ->
+    Fmt.pf ppf "@[<2>Unexpected@ {@ expected =@ @[%a@];@ actual =@ @[%a@] }@]"
+      (Fmt.option pp_token) expected (Fmt.option pp_token) actual
   | Invalid_infix token ->
     Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
   | Invalid_prefix token ->
     Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
   | Empty -> Fmt.pf ppf "Empty"
 
-type ('t, 'a) parser = 't Iter.t -> ('a * 't Iter.t, 't error) result
+type 't state =
+  { lexer : 't Iter.t;
+    token : 't option }
+
+type ('t, 'a) parser = 't state -> ('a * 't state, 't error) result
 
 let return x =
   fun input -> Ok (x, input)
@@ -85,18 +86,23 @@ let error e =
 
 let advance s =
   let p =
-    get >>= fun input ->
-    match Iter.view input with
-    | Some (_, input') -> put input'
+    get >>= fun state ->
+    match Iter.view state.lexer with
+    | Some (_, lexer) -> put { state with lexer }
     | None -> return () in
   p s
 
-let expect expected =
-  get >>= fun input ->
-  match Iter.view input with
-  | Some (actual, _) when actual = expected -> return actual
-  | Some (actual, _) -> error (Unexpected_token { actual; expected })
-  | None -> error (Unexpected_end { expected })
+let current = fun s ->
+  let p = get >>= fun { token } ->
+    match token with
+    | Some x -> return x
+    | None -> error (unexpected ()) in
+  p s
+
+let expect (expected : 't) =
+  current >>= function
+  | actual when actual = expected -> return actual
+  | actual -> error (unexpected ~actual ~expected ())
 
 let consume tok =
   expect tok >>= fun _ -> advance
@@ -105,11 +111,9 @@ let exactly x =
   expect x >>= fun x -> advance >>= fun () -> return x
 
 let satisfy test =
-  get >>= fun input ->
-  match Iter.view input with
-  | Some (actual, _) when test actual -> return actual
-  | Some (actual, _) -> error (Failed_satisfy (Some actual))
-  | None -> error (Failed_satisfy None)
+  current >>= function
+  | actual when test actual -> return actual
+  | actual -> error (unexpected ~actual ())
 
 let any s = (satisfy (const true)) s
 
@@ -145,14 +149,19 @@ let get_atom token grammar =
   grammar.atom
 
 let null grammar precedence =
-  (* token >>= fun token -> *)
+  (* current >>= fun token -> *)
   undefined ()
 
 let parse grammar =
-  undefined ()
+  null grammar 0
 
 let run p input =
-  match p input with
+  let token, lexer =
+    match Iter.view input with
+    | Some (t, input') -> Some t, input'
+    | None -> None, input in
+  let state = { lexer; token } in
+  match p state with
   | Ok (x, _) -> Ok x
   | Error e -> Error e
 
