@@ -1,13 +1,24 @@
 
-module P = Pratt.Parser.String
+module P = Pratt
 module T = Nanotest
+
+let iter str =
+  let next i =
+    try
+      Some (String.get str i, (i + 1))
+    with Invalid_argument _ ->
+      None in
+  Iter.Iter (0, next)
 
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =
   let message = "input: " ^ if input = "" then "<empty>" else input in
   let printer = T.result T.char (T.of_pp (P.pp_error Fmt.char)) in
-  let actual  = P.parse parser input in
+  let actual  = P.run parser (iter input) in
+  let () = match expected with
+  | Error e -> P.error_to_string Fmt.char e |> print
+  | _ -> () in
   T.test printer message ~expected ~actual
 
 let test_error () =
@@ -21,8 +32,8 @@ let test_error () =
 let test_expect () =
   let (==>) = test (P.expect 'a') in
   T.group "Parser.expect" [
-    ""    ==> Error P.(Unexpected_end   { expected = 'a' });
-    "x"   ==> Error P.(Unexpected_token { expected = 'a'; actual = 'x' });
+    ""    ==> Error P.(Unexpected_end { expected = 'a' });
+    "x"   ==> Error P.(Unexpected_token { expected = 'a'; actual = 'x'});
     "a"   ==> Ok 'a';
     "abc" ==> Ok 'a';
   ]
@@ -32,16 +43,16 @@ let test_exactly () =
   T.group "Parser.exactly" [
     ('x', "x") ==> Ok 'x';
     ('x', "y") ==> Error P.(Unexpected_token { expected = 'x'; actual = 'y' });
-    ('x', "")  ==> Error P.(Unexpected_end   { expected = 'x' });
+    ('x', "")  ==> Error P.(Unexpected_end { expected = 'x' });
   ]
 
 let test_satisfy () =
   let (==>) = test (P.satisfy Char.Ascii.is_upper) in
   T.group "Parser.satisfy is_upper" [
     "A" ==> Ok 'A';
-    ""  ==> Error P.Empty;
-    "0" ==> Error (P.Failed_satisfy '0');
-    "a" ==> Error (P.Failed_satisfy 'a');
+    ""  ==> Error P.(Failed_satisfy None);
+    "0" ==> Error P.(Failed_satisfy (Some '0'));
+    "a" ==> Error P.(Failed_satisfy (Some 'a'));
   ]
 
 let test_any () =
@@ -50,17 +61,17 @@ let test_any () =
     "x" ==> Ok 'x';
     "0" ==> Ok '0';
     "?" ==> Ok '?';
-    ""  ==> Error Empty;
+    ""  ==> Error P.(Failed_satisfy None);
   ]
 
-let test_one_of () =
-  let (==>) (options, input) = test (P.one_of options) input in
-  T.group "Parser.one_of" [
-    ([], "x")         ==> Error P.(Failed_satisfy 'x');
+let test_from () =
+  let (==>) (options, input) = test (P.from options) input in
+  T.group "Parser.from" [
+    ([], "x")         ==> Error P.(Failed_satisfy (Some 'x'));
     (['x'], "x")      ==> Ok 'x';
     (['x'; 'y'], "y") ==> Ok 'y';
-    (['x'; 'y'], "z") ==> Error P.(Failed_satisfy 'z');
-    ([],  "")         ==> Error Empty;
+    (['x'; 'y'], "z") ==> Error P.(Failed_satisfy (Some 'z'));
+    ([],  "")         ==> Error P.(Failed_satisfy None);
   ]
 
 let () = begin
@@ -69,6 +80,6 @@ let () = begin
   test_exactly ();
   test_satisfy ();
   test_any ();
-  test_one_of ();
+  test_from ();
 end
 

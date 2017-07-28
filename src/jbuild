@@ -2,7 +2,7 @@
 
 (library
  ((name pratt)
-  (modules (Parser))
-  (libraries (pure fmt iter))
-  (flags (:standard -open Pure))))
+  (modules (Pratt))
+  (libraries (pure fmt iter astring))
+  (flags (:standard -open Pure -open Astring))))
 

@@ -1,5 +1,7 @@
 B ../_build/default/src
-FLG -open Pratt -w -40 -open Pure
+FLG -w -40 -open Pure -open Astring
+PKG astring
+PKG bytes
 PKG fmt
 PKG iter
 PKG pure

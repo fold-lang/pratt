@@ -1,7 +1,7 @@
 (jbuild_version 1)
 
-(executable
-  ((name Test_parser)
+(executables
+  ((names (Test_parser Test_pratt_calc))
    (libraries (pratt pure fmt unix astring))
    (flags (:standard -open Pure -open Astring))))
 
@@ -9,5 +9,11 @@
  ((name runtest)
   (package pratt)
   (deps (Test_parser.exe))
+  (action (run ${<}))))
+
+(alias
+ ((name runtest)
+  (package pratt)
+  (deps (Test_pratt_calc.exe))
   (action (run ${<}))))
 

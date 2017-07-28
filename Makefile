@@ -1,6 +1,6 @@
 
 build:
-	jbuilder build @install @DEFAULT -j4
+	jbuilder build -j4
 
 test:
 	jbuilder runtest
