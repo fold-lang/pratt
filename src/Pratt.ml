@@ -1,4 +1,15 @@
 
+open Pure
+
+module Hash_map = struct
+  include Hashtbl
+
+  let get tbl x =
+    try Some (Hashtbl.find tbl x)
+    with Not_found -> None
+end
+
+
 type 't error =
   | Unexpected     of { expected : 't option; actual : 't option }
   | Invalid_infix  of 't
@@ -18,9 +29,9 @@ let error_to_string pp_token = function
   | Unexpected { expected = None; actual = Some t } ->
     Fmt.strf "Syntax error: unexpected token '%a'" pp_token t
   | Invalid_infix token ->
-    Fmt.strf "Syntax error: token '%a' cannot be used in prefix postion" pp_token token
+    Fmt.strf "Syntax error: '%a' cannot be used in infix postion" pp_token token
   | Invalid_prefix token ->
-    Fmt.strf "Syntax error: token '%a' cannot be used in infix position" pp_token token
+    Fmt.strf "Syntax error: '%a' cannot be used in prefix position" pp_token token
   | Empty ->
     Fmt.strf "Syntax error: empty parser result"
 
@@ -31,7 +42,7 @@ let pp_error pp_token ppf = function
   | Invalid_infix token ->
     Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
   | Invalid_prefix token ->
-    Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
+    Fmt.pf ppf "@[<2>Invalid_prefix@ @[%a@] @]" pp_token token
   | Empty -> Fmt.pf ppf "Empty"
 
 type 't state =
@@ -88,8 +99,8 @@ let advance s =
   let p =
     get >>= fun state ->
     match Iter.view state.lexer with
-    | Some (_, lexer) -> put { state with lexer }
-    | None -> return () in
+    | Some (token, lexer) -> put { lexer; token = Some token }
+    | None -> put { state with token = None } in
   p s
 
 let current = fun s ->
@@ -124,36 +135,72 @@ let none list =
   satisfy (fun x -> not (List.mem x list))
 
 
-type ('t, 'a) atom = ('t ->       ('t, 'a) parser)
-type ('t, 'a) null = ('a ->       ('t, 'a) parser)
-type ('t, 'a) left = ('a -> 'a -> ('t, 'a) parser) * int
+type ('t, 'a) grammar = {
+  atom : ('t, 'a) atom;
+  null : ('t, ('t, 'a) null) Hash_map.t;
+  left : ('t, ('t, 'a) left) Hash_map.t;
+}
+
+and ('t, 'a) atom = ('t -> ('t, 'a) null)
+and ('t, 'a) null = (('t, 'a) grammar ->       ('t, 'a) parser)
+and ('t, 'a) left = (('t, 'a) grammar -> 'a -> ('t, 'a) parser) * int
 
 type ('t, 'a) rule =
   | Atom of      ('t, 'a) atom
   | Null of 't * ('t, 'a) null
   | Left of 't * ('t, 'a) left
 
-type ('t, 'a) grammar = {
-  atom : ('t, 'a) atom;
-  null : ('t, ('t, 'a) null) Hashtbl.t;
-  left : ('t, ('t, 'a) left) Hashtbl.t;
-}
+module Grammar = struct
+  type ('t, 'a) t = ('a, 'a) grammar
 
-let get_null token grammar =
-  Hashtbl.find grammar.null token
+  let make () =
+    { atom = (fun t g -> error (Invalid_prefix t));
+      null = Hash_map.create 64;
+      left = Hash_map.create 64 }
 
-let get_left token grammar =
-  Hashtbl.find grammar.left token
+  let add self rule =
+    match rule with
+    | Atom atom -> { self with atom }
+    | Null (t, rule) ->
+      Hash_map.add self.null t rule;
+      self
+    | Left (t, rule) ->
+      Hash_map.add self.left t rule;
+      self
 
-let get_atom token grammar =
-  grammar.atom
+  let dump pp_token self =
+    Fmt.pr "grammar.null:\n";
+    Hash_map.iter (fun t _ -> Fmt.pr "%a\n" pp_token t) self.null;
+    Fmt.pr "grammar.left:\n";
+    Hash_map.iter (fun t _ -> Fmt.pr "%a\n" pp_token t) self.left;
+end
 
-let null grammar precedence =
-  (* current >>= fun token -> *)
-  undefined ()
+let rec nud grammar rbp =
+  current >>= fun token ->
+  let parse =
+    match Hash_map.get grammar.null token with
+    | Some p -> p
+    | None -> grammar.atom token in
+  parse grammar >>= led grammar rbp
 
-let parse grammar =
-  null grammar 0
+and led grammar rbp x =
+  get >>= fun { token = token_opt } ->
+  match token_opt with
+  | Some token ->
+    begin match Hash_map.get grammar.left token with
+      | Some (parse, lbp) ->
+        if lbp > rbp then
+          parse grammar x >>= led grammar rbp
+        else
+          return x
+      | None -> error (Invalid_infix token)
+    end
+  | None -> return x
+
+let parse rules =
+  let grammar = List.fold_left
+      Grammar.add (Grammar.make ()) rules in
+  nud grammar 0
 
 let run p input =
   let token, lexer =
@@ -165,34 +212,35 @@ let run p input =
   | Ok (x, _) -> Ok x
   | Error e -> Error e
 
+
 module Rule = struct
   type ('t, 'a) t = ('t, 'a) rule
 
   let token f =
-    let parse token =
+    let parse token grammar =
       match f token with
-      | Some x -> return x
+      | Some x -> advance >>= fun () -> return x
       | None -> error (Invalid_prefix token) in
     Atom parse
 
   let infix precedence token f =
     let parse grammar x =
       advance >>= fun () ->
-      null grammar precedence >>= fun y ->
+      nud grammar precedence >>= fun y ->
       return (f x y) in
     Left (token, (parse, precedence))
 
   let infixr precedence token f =
     let parse grammar x =
       advance >>= fun () ->
-      null grammar (precedence - 1) >>= fun y ->
+      nud grammar (precedence - 1) >>= fun y ->
       return (f x y) in
     Left (token, (parse, precedence))
 
   let prefix token f =
     let parse grammar =
       advance >>= fun () ->
-      null grammar 0 >>= fun x ->
+      nud grammar 0 >>= fun x ->
       return (f x) in
     Null (token, parse)
 
@@ -205,7 +253,7 @@ module Rule = struct
   let between token1 token2 f =
     let parse grammar =
       advance >>= fun () ->
-      null grammar 0 >>= fun x ->
+      nud grammar 0 >>= fun x ->
       consume token2 >>= fun () ->
       return (f x) in
     Null (token1, parse)
