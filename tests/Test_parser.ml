@@ -2,19 +2,11 @@
 module P = Pratt
 module T = Nanotest
 
-let iter str =
-  let next i =
-    try
-      Some (String.get str i, (i + 1))
-    with Invalid_argument _ ->
-      None in
-  Iter.Iter (0, next)
-
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =
   let printer = T.result T.char (T.of_pp (P.pp_error Fmt.char)) in
-  let actual  = P.run parser (iter input) in
+  let actual  = P.run parser (Iter.string input) in
   let message = "\"" ^ input ^ "\"" in
   T.test printer message ~expected ~actual
 
