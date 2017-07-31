@@ -43,9 +43,6 @@ val return : 'a -> ('t, 'a) parser
 val (>>=) : ('t, 'a) parser -> ('a -> ('t, 'b) parser) -> ('t, 'b) parser
 (** [p >>= f] is a parser returned by [f] after applying [f] to the result of [p]. *)
 
-(** {2:parser-state State Instance} *)
-
-
 
 val error : 't error -> ('t, 'a) parser
 (** [error e] is a parser that fails with the error [e] without consuming any

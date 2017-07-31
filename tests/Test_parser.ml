@@ -13,12 +13,9 @@ let iter str =
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =
-  let message = "input: " ^ if input = "" then "<empty>" else input in
   let printer = T.result T.char (T.of_pp (P.pp_error Fmt.char)) in
   let actual  = P.run parser (iter input) in
-  let () = match expected with
-  | Error e -> P.error_to_string Fmt.char e |> print
-  | _ -> () in
+  let message = "\"" ^ input ^ "\"" in
   T.test printer message ~expected ~actual
 
 let test_error () =

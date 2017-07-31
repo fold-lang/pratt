@@ -38,7 +38,7 @@ let error_to_string pp_token = function
 let pp_error pp_token ppf = function
   | Unexpected { expected; actual } ->
     Fmt.pf ppf "@[<2>Unexpected@ {@ expected =@ @[%a@];@ actual =@ @[%a@] }@]"
-      (Fmt.option pp_token) expected (Fmt.option pp_token) actual
+      (Fmt.Dump.option pp_token) expected (Fmt.Dump.option pp_token) actual
   | Invalid_infix token ->
     Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
   | Invalid_prefix token ->
@@ -111,9 +111,11 @@ let current = fun s ->
   p s
 
 let expect (expected : 't) =
-  current >>= function
-  | actual when actual = expected -> return actual
-  | actual -> error (unexpected ~actual ~expected ())
+  get >>= fun { token } ->
+  match token with
+  | Some actual when actual = expected -> return actual
+  | Some actual -> error (unexpected ~actual ~expected ())
+  | None -> error (unexpected ~expected ())
 
 let consume tok =
   expect tok >>= fun _ -> advance
