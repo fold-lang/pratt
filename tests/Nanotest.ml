@@ -56,13 +56,13 @@ let time ?fmt f x =
   | None     -> Printf.eprintf "Elapsed time: %f sec\n" t1 in
   fx
 
-let test ty msg ~actual ~expected () =
+let test ~verbose ty msg ~actual ~expected () =
   let ok = equal ty actual expected in
   begin if not ok then begin
     print (Fmt.strf "  %s %s" (C.bright_red "✗") (C.bright_white msg));
     print (Fmt.strf "    - %a" (pp ty) expected);
     print (Fmt.strf "    + %a" (pp ty) actual)
-  end else
+  end else if verbose then
     print (format "  %s %s" (C.bright_green "✓") (C.bright_white msg))
   end;
   ok

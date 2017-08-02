@@ -1,4 +1,4 @@
-
+open Astring
 module P = Pratt
 module T = Nanotest
 
@@ -8,7 +8,7 @@ let test parser input expected =
   let printer = T.result T.char (T.of_pp (P.pp_error Fmt.char)) in
   let actual  = P.run parser (Iter.string input) in
   let message = "\"" ^ input ^ "\"" in
-  T.test printer message ~expected ~actual
+  T.test ~verbose:false printer message ~expected ~actual
 
 let test_error () =
   let (==>) = test P.(error Empty) in

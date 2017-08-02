@@ -3,7 +3,7 @@
 (executables
   ((names (Test_parser Test_pratt_calc))
    (libraries (pratt pure fmt unix astring))
-   (flags (:standard -open Pure -open Astring))))
+   (flags (:standard -open Pure))))
 
 (alias
  ((name runtest)

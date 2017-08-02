@@ -71,8 +71,10 @@ let zero = fun _input -> Error Empty
 let (<|>) p q = fun input ->
   match p input with
   | Ok value -> Ok value
-  | Error Empty  -> q input
-  | Error e -> Error e
+  | Error _  -> q input
+  (* XXX: What if p consumes input? *)
+  (* | Error Empty  -> q input *)
+  (* | Error e -> Error e *)
 
 
 let default x p =
@@ -110,6 +112,12 @@ let current = fun s ->
     | None -> error (unexpected ()) in
   p s
 
+let next s =
+  let p =
+    current >>= fun x ->
+    advance >>= fun () -> return x in
+  p s
+
 let expect (expected : 't) =
   get >>= fun { token } ->
   match token with
@@ -124,7 +132,7 @@ let exactly x =
   expect x >>= fun x -> advance >>= fun () -> return x
 
 let satisfy test =
-  current >>= function
+  next >>= function
   | actual when test actual -> return actual
   | actual -> error (unexpected ~actual ())
 
@@ -136,19 +144,28 @@ let from list =
 let none list =
   satisfy (fun x -> not (List.mem x list))
 
+let range ?(compare = Pure.compare) s e =
+  let (<=) a b = not (compare a b = Comparable.greater) in
+  satisfy (fun x -> s <= x && x <= e)
+
+let rec choice ps =
+  match ps with
+  | [] -> zero
+  | p :: ps' -> p <|> choice ps'
+
 
 type ('t, 'a) grammar = {
-  atom : ('t, 'a) atom;
+  term : ('t, 'a) term;
   null : ('t, ('t, 'a) null) Hash_map.t;
   left : ('t, ('t, 'a) left) Hash_map.t;
 }
 
-and ('t, 'a) atom = ('t -> ('t, 'a) null)
+and ('t, 'a) term = ('t, 'a) parser
 and ('t, 'a) null = (('t, 'a) grammar ->       ('t, 'a) parser)
 and ('t, 'a) left = (('t, 'a) grammar -> 'a -> ('t, 'a) parser) * int
 
 type ('t, 'a) rule =
-  | Atom of      ('t, 'a) atom
+  | Term of      ('t, 'a) term
   | Null of 't * ('t, 'a) null
   | Left of 't * ('t, 'a) left
 
@@ -156,13 +173,13 @@ module Grammar = struct
   type ('t, 'a) t = ('a, 'a) grammar
 
   let make () =
-    { atom = (fun t g -> error (Invalid_prefix t));
+    { term = (current >>= fun t -> error (Invalid_prefix t));
       null = Hash_map.create 64;
       left = Hash_map.create 64 }
 
   let add self rule =
     match rule with
-    | Atom atom -> { self with atom }
+    | Term term -> { self with term }
     | Null (t, rule) ->
       Hash_map.add self.null t rule;
       self
@@ -182,7 +199,7 @@ let rec nud grammar rbp =
   let parse =
     match Hash_map.get grammar.null token with
     | Some p -> p
-    | None -> grammar.atom token in
+    | None -> (fun g -> grammar.term) in
   parse grammar >>= led grammar rbp
 
 and led grammar rbp x =
@@ -215,53 +232,53 @@ let run p input =
   | Error e -> Error e
 
 
-module Rule = struct
-  type ('t, 'a) t = ('t, 'a) rule
 
-  let token f =
-    let parse token grammar =
-      match f token with
-      | Some x -> advance >>= fun () -> return x
-      | None -> error (Invalid_prefix token) in
-    Atom parse
+  (* let token f = *)
+  (*   let parse token grammar = *)
+  (*     match f token with *)
+  (*     | Some x -> advance >>= fun () -> return x *)
+  (*     | None -> error (Invalid_prefix token) in *)
+  (*   Atom parse *)
 
-  let infix precedence token f =
-    let parse grammar x =
-      advance >>= fun () ->
+let term parse =
+  Term parse
+
+let infix precedence token f =
+  let parse grammar x =
+    advance >>= fun () ->
       nud grammar precedence >>= fun y ->
-      return (f x y) in
-    Left (token, (parse, precedence))
+        return (f x y) in
+  Left (token, (parse, precedence))
 
-  let infixr precedence token f =
-    let parse grammar x =
-      advance >>= fun () ->
+let infixr precedence token f =
+  let parse grammar x =
+    advance >>= fun () ->
       nud grammar (precedence - 1) >>= fun y ->
-      return (f x y) in
-    Left (token, (parse, precedence))
+        return (f x y) in
+  Left (token, (parse, precedence))
 
-  let prefix token f =
-    let parse grammar =
-      advance >>= fun () ->
+let prefix token f =
+  let parse grammar =
+    advance >>= fun () ->
       nud grammar 0 >>= fun x ->
-      return (f x) in
-    Null (token, parse)
+        return (f x) in
+  Null (token, parse)
 
-  let postfix precedence token f =
-    let parse grammar x =
-      advance >>= fun () ->
+let postfix precedence token f =
+  let parse grammar x =
+    advance >>= fun () ->
       return (f x) in
-    Left (token, (parse, precedence))
+  Left (token, (parse, precedence))
 
-  let between token1 token2 f =
-    let parse grammar =
-      advance >>= fun () ->
+let between token1 token2 f =
+  let parse grammar =
+    advance >>= fun () ->
       nud grammar 0 >>= fun x ->
-      consume token2 >>= fun () ->
-      return (f x) in
-    Null (token1, parse)
+        consume token2 >>= fun () ->
+          return (f x) in
+  Null (token1, parse)
 
-  let delimiter token =
-    let parse g x = error (Invalid_infix token) in
-    Left (token, (parse, 0))
-end
+let delimiter token =
+  let parse g x = error (Invalid_infix token) in
+  Left (token, (parse, 0))
 
