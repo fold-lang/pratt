@@ -16,11 +16,20 @@ type 't error =
   | Invalid_prefix of 't
   | Empty
 
-let unexpected ?expected ?actual () =
-  Unexpected { expected; actual }
+let unexpected_token ?expected actual =
+  Unexpected {expected; actual = Some actual}
+
+let unexpected_end ?expected () =
+  Unexpected {expected; actual = None}
+
+let invalid_prefix t =
+  Invalid_prefix t
+
+let invalid_infix t =
+  Invalid_infix t
 
 let error_to_string pp_token = function
-  | Unexpected { expected = Some t1; actual = Some t2 } ->
+  | Unexpected {expected = Some t1; actual = Some t2} ->
     Fmt.strf "Syntax error: expected '%a' but got '%a'" pp_token t1 pp_token t2
   | Unexpected  { expected = Some t; actual = None } ->
     Fmt.strf "Syntax error: unexpected end of file while parsing '%a'" pp_token t
@@ -109,7 +118,7 @@ let current = fun s ->
   let p = get >>= fun { token } ->
     match token with
     | Some x -> return x
-    | None -> error (unexpected ()) in
+    | None -> error (unexpected_end ()) in
   p s
 
 let next s =
@@ -122,8 +131,8 @@ let expect (expected : 't) =
   get >>= fun { token } ->
   match token with
   | Some actual when actual = expected -> return actual
-  | Some actual -> error (unexpected ~actual ~expected ())
-  | None -> error (unexpected ~expected ())
+  | Some actual -> error (unexpected_token ~expected actual)
+  | None -> error (unexpected_end ~expected ())
 
 let consume tok =
   expect tok >>= fun _ -> advance
@@ -134,7 +143,7 @@ let exactly x =
 let satisfy test =
   next >>= function
   | actual when test actual -> return actual
-  | actual -> error (unexpected ~actual ())
+  | actual -> error (unexpected_token actual)
 
 let any s = (satisfy (const true)) s
 

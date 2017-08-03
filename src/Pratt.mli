@@ -9,14 +9,24 @@
 (** Pratt is a library for simple top-down precedence parsing. *)
 
 type 'token error =
-  | Unexpected     of { expected : 'token option; actual : 'token option }
+  | Unexpected     of {expected : 'token option; actual : 'token option}
   | Invalid_infix  of 'token
   | Invalid_prefix of 'token
   | Empty
 (** The type of errors for tokens of type ['a]. *)
 
-val unexpected : ?expected : 'token -> ?actual : 'token -> unit -> 'token error
-(** [unexpected ~actual ~expected ()] is the [Unexpected] error. *)
+val unexpected_token : ?expected : 'token -> 'token -> 'token error
+(** [unexpected_token ?expected t] is [Unexpected {actual = Some t;
+    expected}]. *)
+
+val unexpected_end : ?expected : 'token -> unit -> 'token error
+(** [unexpected_end ?expected ()] is [Unexpected {actual = None; expected}]. *)
+
+val invalid_prefix : 'token -> 'token error
+(** [invalid_prefix t] is [Invalid_prefix t]. *)
+
+val invalid_infix : 'token -> 'token error
+(** [invalid_infix t] is [Invalid_infix t]. *)
 
 val error_to_string : 'token printer -> 'token error -> string
 (** [error_to_string token_pp e] is a human-readable representation of [e]. *)

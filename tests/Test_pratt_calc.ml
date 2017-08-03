@@ -1,43 +1,39 @@
-
-module Char = Astring.Char
-
-let implode l =
-  let arr = Array.of_list l in
-  String.init (Array.length arr) (Array.get arr)
-
-let number =
-  let open Pratt in
-  many (range '0' '9') >>= fun xs ->
-  match Int.parse (implode xs) with
-  | Some n -> return n
-  | None -> current >>= fun t -> error (Invalid_prefix t)
-
+open Local
 open Pratt
+
+(* Integer parser for char tokens. *)
+let int =
+  some (range '0' '9') >>= fun (x, xs) ->
+  return (Int.force_of_string (String.implode (x :: xs)))
 
 (* Basic calculator grammar. *)
 let calc =
-  [term number;
-   prefix     '+'     (fun a   -> +a);
-   infix   30 '+'     (fun a b -> a + b);
-   prefix     '-'     (fun a   -> -a);
-   infix   30 '-'     (fun a b -> a - b);
-   infix   40 '*'     (fun a b -> a * b);
-   infix   40 '/'     (fun a b -> a / b);
-   between    '(' ')' (fun a   -> a);
+  [term               int;
+   prefix     '+'     id;
+   infix   30 '+'     ( + );
+   prefix     '-'     (~- );
+   infix   30 '-'     ( - );
+   infix   40 '*'     ( * );
+   infix   40 '/'     ( / );
+   between    '(' ')' id;
    delimiter  ')']
 
-(* Helper function that runs the parsing test with clac grammar. *)
+(* Basic string lexer (ignores blank characters). *)
+let lexer =
+  Iter.string >> Iter.reject Char.Ascii.is_blank
+
+module T = Nanotest
+
+(* Helper testing function that parses the input and checks the result. *)
 let (==>) str expected =
-  let input = Iter.filter (not << Char.Ascii.is_blank) (Iter.string str) in
-  let actual = run (parse calc) input in
-  let printer = Nanotest.(result int (of_pp (pp_error Fmt.char))) in
-  Nanotest.(test ~verbose:true printer ("\"" ^ str ^ "\"") ~actual ~expected)
+  let actual = run (parse calc) (lexer str) in
+  let testable = T.(result int (testable (pp_error Fmt.char))) in
+  T.test testable str ~actual ~expected
 
-
+(* Tests *)
 let () =
-  Nanotest.group "Test basic" [
+  T.group "Test basic" [
     "1"            ==> Ok 1;
-    "x"            ==> Error (Invalid_prefix 'x');
     "+1"           ==> Ok 1;
     "+-+-1"        ==> Ok 1;
     "1 + 1"        ==> Ok 2;
@@ -47,11 +43,14 @@ let () =
     "(((0)))"      ==> Ok 0;
     "2 + 2 * 2"    ==> Ok 6;
     "(2 + 2) * 2"  ==> Ok 8;
-    ""             ==> Error (unexpected ());
-    "/"            ==> Error (Invalid_prefix '/');
-    "2 /"          ==> Error (unexpected ());
-    "2 / -"        ==> Error (unexpected ());
-    "2 2"          ==> Error (Invalid_infix '2');
-    "2 ("          ==> Error (Invalid_infix '(');
+  ];
+
+  T.group "Check errors" [
+    "x"            ==> Error (unexpected_token 'x');
+    ""             ==> Error (unexpected_end ());
+    "/"            ==> Error (unexpected_token '/');
+    "2 /"          ==> Error (unexpected_end ());
+    "2 / -"        ==> Error (unexpected_end ());
+    "2 ("          ==> Error (invalid_infix '(');
   ]
 

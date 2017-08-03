@@ -42,9 +42,10 @@ end
 
 type 'a testable = (module Testable with type t = 'a)
 
-let pp (type a) (t: a testable) = let (module T) = t in T.pp
-
-let equal (type a) (t: a testable) = let (module T) = t in T.equal
+module Testable = struct
+  let pp (type a) (t: a testable) = let (module T) = t in T.pp
+  let equal (type a) (t: a testable) = let (module T) = t in T.equal
+end
 
 
 let time ?fmt f x =
@@ -56,12 +57,12 @@ let time ?fmt f x =
   | None     -> Printf.eprintf "Elapsed time: %f sec\n" t1 in
   fx
 
-let test ~verbose ty msg ~actual ~expected () =
-  let ok = equal ty actual expected in
+let test ?(verbose = true) ty msg ~actual ~expected () =
+  let ok = Testable.equal ty actual expected in
   begin if not ok then begin
     print (Fmt.strf "  %s %s" (C.bright_red "✗") (C.bright_white msg));
-    print (Fmt.strf "    - %a" (pp ty) expected);
-    print (Fmt.strf "    + %a" (pp ty) actual)
+    print (Fmt.strf "    - %a" (Testable.pp ty) expected);
+    print (Fmt.strf "    + %a" (Testable.pp ty) actual)
   end else if verbose then
     print (format "  %s %s" (C.bright_green "✓") (C.bright_white msg))
   end;
@@ -74,6 +75,15 @@ let testable (type a) (pp: a Fmt.t) (equal: a -> a -> bool) : a testable =
     let equal = equal
   end in
   (module M)
+
+let testable (type a) ?(equal: a -> a -> bool = (==)) (pp: a Fmt.t) : a testable =
+  let module M = struct
+    type t = a
+    let pp = pp
+    let equal = equal
+  end in
+  (module M)
+
 
 let group name tests =
   print (format "━━━ %s ━━━" (C.bright_blue name));
@@ -93,53 +103,54 @@ let group name tests =
     | s, f -> format "%d tests passed, %d tests failed" s f in
   print (format "  %s %s in %0.2fms\n" (C.bright_magenta "•") msg (t *. 1000.0))
 
-let int    = testable Fmt.int (=)
-let int32  = testable Fmt.int32 (=)
-let int64  = testable Fmt.int64 (=)
-let float  = testable Fmt.float (=)
-let char   = testable Fmt.char (=)
-let string = testable Fmt.string (=)
-let bool   = testable Fmt.bool (=)
-let unit   = testable (Fmt.unit "()") (=)
+let int    : 'a testable = (module Int)
+let float  : 'a testable = (module Float)
+let char   : 'a testable = (module Char)
+let bool   : 'a testable = (module Bool)
+let unit   : 'a testable = (module Unit)
+let int32  : 'a testable = testable ~equal:Int32.equal Fmt.int32
+let int64  : 'a testable = testable ~equal:Int64.equal Fmt.int64
+let string : 'a testable = testable ~equal:String.equal Fmt.string
 
 
 let list e =
-  let rec eq l1 l2 = match (l1, l2) with
-    | (x::xs, y::ys) -> equal e x y && eq xs ys
+  let rec equal l1 l2 =
+    match (l1, l2) with
+    | (x::xs, y::ys) -> Testable.equal e x y && equal xs ys
     | ([], []) -> true
     | _ -> false in
-  testable (Fmt.Dump.list (pp e)) eq
+  testable (Fmt.Dump.list (Testable.pp e)) ~equal
 
-let slist (type a) (a : a testable) compare =
+let sorted_list (type a) (a : a testable) compare =
   let l = list a in
-  let eq l1 l2 = equal l (List.sort compare l1) (List.sort compare l2) in
-  testable (pp l) eq
+  let equal l1 l2 = Testable.equal l (List.sort compare l1) (List.sort compare l2) in
+  testable (Testable.pp l) ~equal
 
 let array e =
-  let eq a1 a2 =
+  let equal a1 a2 =
     let (m, n) = Array.(length a1, length a2) in
-    let rec go i = i = m || (equal e a1.(i) a2.(i) && go (i + 1)) in
+    let rec go i = i = m || (Testable.equal e a1.(i) a2.(i) && go (i + 1)) in
     m = n && go 0 in
-  testable (Fmt.Dump.array (pp e)) eq
+  testable (Fmt.Dump.array (Testable.pp e)) ~equal
 
 let pair a b =
-  let eq (a1, b1) (a2, b2) = equal a a1 a2 && equal b b1 b2 in
-  testable (Fmt.Dump.pair (pp a) (pp b)) eq
+  let equal (a1, b1) (a2, b2) =
+    Testable.equal a a1 a2 && Testable.equal b b1 b2 in
+  testable (Fmt.Dump.pair (Testable.pp a) (Testable.pp b)) ~equal
 
 let option e =
-  let eq x y = match (x, y) with
-    | (Some a, Some b) -> equal e a b
+  let equal x y =
+    match (x, y) with
+    | (Some a, Some b) -> Testable.equal e a b
     | (None, None) -> true
     | _ -> false in
-  testable (Fmt.Dump.option (pp e)) eq
+  testable (Fmt.Dump.option (Testable.pp e)) ~equal
 
 let result a e =
-  let eq x y =
+  let equal x y =
     match (x, y) with
-    | (Ok x, Ok y) -> equal a x y
-    | (Error x, Error y) -> equal e x y
+    | (Ok x, Ok y) -> Testable.equal a x y
+    | (Error x, Error y) -> Testable.equal e x y
     | _ -> false in
-  testable (Fmt.Dump.result ~ok:(pp a) ~error:(pp e)) eq
-
-let of_pp pp = testable pp (=)
+  testable (Fmt.Dump.result ~ok:(Testable.pp a) ~error:(Testable.pp e)) ~equal
 
