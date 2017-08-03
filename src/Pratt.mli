@@ -6,7 +6,15 @@
  *)
 
 
-(** Pratt is a library for simple top-down precedence parsing. *)
+(**
+   Pratt is a library for simple top-down precedence parsing.
+
+   The grammar is defined as a set of rules that are matched on tokens. Input
+   is processed linearly with an iterator. The parser searches for rules that
+   match the current token based on its position (prefix or infix). Rules store
+   the matching token, the precedence (for infix rules) and the parser that
+   builds the final Abstract Syntax Tree (AST) object.
+ *)
 
 type 'token error =
   | Unexpected     of {expected : 'token option; actual : 'token option}
@@ -166,6 +174,9 @@ val between : 'token -> 'token -> ('a -> 'a) -> ('token, 'a) rule
 
 val delimiter : 'token -> ('token, 'a) rule
 (** [delimiter token] is a rule that parses a delimiter [token]. *)
+
+
+(** {1:parsing Parsing} *)
 
 val parse : ('token, 'a) rule list -> ('token, 'a) parser
 (** [parse rules] is the parser for the grammar defined by [rules]. *)
