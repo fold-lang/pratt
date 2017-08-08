@@ -54,11 +54,7 @@ let pp_error pp_token ppf = function
     Fmt.pf ppf "@[<2>Invalid_prefix@ @[%a@] @]" pp_token token
   | Empty -> Fmt.pf ppf "Empty"
 
-type 't state =
-  { lexer : 't Iter.t;
-    token : 't option }
-
-type ('t, 'a) parser = 't state -> ('a * 't state, 't error) result
+type ('t, 'a) parser = 't Iter.t -> ('a * 't Iter.t, 't error) result
 
 let return x =
   fun input -> Ok (x, input)
@@ -109,16 +105,16 @@ let error e =
 let advance s =
   let p =
     get >>= fun state ->
-    match Iter.view state.lexer with
-    | Some (token, lexer) -> put { lexer; token = Some token }
-    | None -> put { state with token = None } in
+    match Iter.view state with
+    | Some (token, state') -> put state'
+    | None -> put state in
   p s
 
 let current = fun s ->
-  let p = get >>= fun { token } ->
-    match token with
-    | Some x -> return x
-    | None -> error (unexpected_end ()) in
+  let p = get >>= fun state ->
+    match Iter.view state with
+    | Some (token, _) -> return token
+    | None -> print "curr"; error (unexpected_end ()) in
   p s
 
 let next s =
@@ -128,10 +124,10 @@ let next s =
   p s
 
 let expect (expected : 't) =
-  get >>= fun { token } ->
-  match token with
-  | Some actual when actual = expected -> return actual
-  | Some actual -> error (unexpected_token ~expected actual)
+  get >>= fun state ->
+  match Iter.view state with
+  | Some (actual, _) when actual = expected -> return actual
+  | Some (actual, _) -> error (unexpected_token ~expected actual)
   | None -> error (unexpected_end ~expected ())
 
 let consume tok =
@@ -212,8 +208,8 @@ let rec nud grammar rbp =
   parse grammar >>= led grammar rbp
 
 and led grammar rbp x =
-  get >>= fun { token = token_opt } ->
-  match token_opt with
+  get >>= fun state ->
+  match Iter.head state with
   | Some token ->
     begin match Hash_map.get grammar.left token with
       | Some (parse, lbp) ->
@@ -221,33 +217,28 @@ and led grammar rbp x =
           parse grammar x >>= led grammar rbp
         else
           return x
-      | None -> error (Invalid_infix token)
+      | None ->
+        error (Invalid_infix token)
     end
-  | None -> return x
+  | None ->
+    return x
 
-let parse rules =
-  let grammar = List.fold_left
-      Grammar.add (Grammar.make ()) rules in
+let grammar rules =
+  List.fold_left Grammar.add (Grammar.make ()) rules
+
+let parse grammar =
   nud grammar 0
 
-let run p input =
-  let token, lexer =
-    match Iter.view input with
-    | Some (t, input') -> Some t, input'
-    | None -> None, input in
-  let state = { lexer; token } in
-  match p state with
-  | Ok (x, _) -> Ok x
-  | Error e -> Error e
+let run p state =
+  if Iter.is_empty state then
+    Error Empty
+  else
+    match p state with
+    | Ok (x, state') -> Ok (x, state')
+    | Error e -> Error e
 
-
-
-  (* let token f = *)
-  (*   let parse token grammar = *)
-  (*     match f token with *)
-  (*     | Some x -> advance >>= fun () -> return x *)
-  (*     | None -> error (Invalid_prefix token) in *)
-  (*   Atom parse *)
+let rule token parse =
+  Null (token, parse)
 
 let term parse =
   Term parse
@@ -255,8 +246,8 @@ let term parse =
 let infix precedence token f =
   let parse grammar x =
     advance >>= fun () ->
-      nud grammar precedence >>= fun y ->
-        return (f x y) in
+    nud grammar precedence >>= fun y ->
+    return (f x y) in
   Left (token, (parse, precedence))
 
 let infixr precedence token f =
@@ -269,8 +260,8 @@ let infixr precedence token f =
 let prefix token f =
   let parse grammar =
     advance >>= fun () ->
-      nud grammar 0 >>= fun x ->
-        return (f x) in
+    nud grammar 0 >>= fun x ->
+    return (f x) in
   Null (token, parse)
 
 let postfix precedence token f =

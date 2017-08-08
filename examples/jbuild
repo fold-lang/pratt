@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(executables
+  ((names (Javascript))
+   (libraries (pratt pure fmt unix astring))
+   (flags (:standard -open Pure))))
+

@@ -44,11 +44,6 @@ val pp_error : 'token printer -> 'token error printer
     contained tokens. *)
 
 
-type ('token, 'a) grammar
-(** Grammar type holding parsing rules for tokens of type ['t] and parsed
-    values of type ['a]. *)
-
-
 (** {1:parser Parser} *)
 
 type ('token, 'a) parser
@@ -105,6 +100,9 @@ val optional : ('token, 'a) parser -> ('token, unit) parser
 val current : ('token, 'token) parser
 (** [current] is the parser that produces the current token as the result. *)
 
+val next : ('token, 'token) parser
+(** [next] advances to the next token producing it as the parser result. *)
+
 val expect : 'token -> ('token, 'token) parser
 (** [expect token] checks if the current token in the input is equal to [token]
     failing if it is not. *)
@@ -142,11 +140,21 @@ val choice : ('token, 'a) parser list -> ('token, 'a) parser
     them succeeds. *)
 
 
+(** {1:grammar Grammar} *)
+
+type ('token, 'a) grammar
+(** Grammar type holding parsing rules for tokens of type ['t] and parsed
+    values of type ['a]. *)
+
+
 (** {1:rules Rules} *)
 
 type ('token, 'a) rule
 (** The type for parsing rules for tokens of type ['t] producing results of
     type ['a]. *)
+
+val rule : 'token -> (('token, 'a) grammar -> ('token, 'a) parser) -> ('token, 'a) rule
+(** [rule t p] is a rule with parser [p] for prefix token [t]. *)
 
 val term : ('token, 'a) parser -> ('token, 'a) rule
 (** [term p] is a parser for literals or variables. *)
@@ -178,10 +186,14 @@ val delimiter : 'token -> ('token, 'a) rule
 
 (** {1:parsing Parsing} *)
 
-val parse : ('token, 'a) rule list -> ('token, 'a) parser
-(** [parse rules] is the parser for the grammar defined by [rules]. *)
+val grammar : ('token, 'a) rule list -> ('token, 'a) grammar
+(** [grammar rules] is a grammar constructed with [rules]. *)
 
-val run : ('token, 'a) parser -> 'token Iter.t -> ('a, 'token error) result
+val parse : ('token, 'a) grammar -> ('token, 'a) parser
+(** [parse g] is the parser for the grammar [g]. *)
+
+val run : ('token, 'a) parser -> 'token Iter.t -> ('a * 'token Iter.t, 'token error) result
 (** [run p input] is the result of running the parser [p] with the given
-    [input].. *)
+    [input]. The parsed value is produced with the remaining input. *)
+
 
