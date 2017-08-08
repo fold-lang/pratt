@@ -104,6 +104,14 @@ let js = grammar [
   rule (`Keyword "return")   parse_return;
 ]
 
+(*
+
+function hello(name) {
+    var x = "Hello, world!"
+    return x
+}
+
+*)
 let program = [
   `Keyword "function";
   `Identifier "hello";
