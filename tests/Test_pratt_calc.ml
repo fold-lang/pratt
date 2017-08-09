@@ -6,17 +6,24 @@ let int =
   some (range '0' '9') >>= fun (x, xs) ->
   return (Int.force_of_string (String.implode (x :: xs)))
 
+let rec fac = function
+  | 0 | 1 -> 1
+  | n -> n * fac (n - 1)
+
 (* Basic calculator grammar. *)
 let calc =
   [term               int;
-   prefix     '+'     id;
-   infix   30 '+'     ( + );
-   prefix     '-'     (~- );
-   infix   30 '-'     ( - );
-   infix   40 '*'     ( * );
-   infix   40 '/'     ( / );
-   between    '(' ')' id;
-   delimiter  ')']
+   prefix     '+'     (fun a -> a);
+   infix   30 '+'     (fun a b -> a + b);
+   prefix     '-'     (fun a -> -a);
+   infix   30 '-'     (fun a b -> a - b);
+   infix   40 '*'     (fun a b -> a * b);
+   infix   40 '/'     (fun a b -> a / b);
+   between    '(' ')' (fun a -> a);
+   delimiter  ')';
+   postfix 70 '!'     (fun a -> fac a);
+   prefix     'f'     (fun a -> fac a);
+  ]
 
 (* Basic string lexer (ignores blank characters). *)
 let lexer =
@@ -27,7 +34,7 @@ module T = Nanotest
 (* Helper testing function that parses the input and checks the result. *)
 let (==>) str expected =
   let actual = run (parse calc) (lexer str) in
-  let testable = T.(result int (testable (pp_error Fmt.char))) in
+  let testable = T.(result int (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
   T.test testable str ~actual ~expected
 
 (* Tests *)
@@ -43,6 +50,11 @@ let () =
     "(((0)))"      ==> Ok 0;
     "2 + 2 * 2"    ==> Ok 6;
     "(2 + 2) * 2"  ==> Ok 8;
+  ];
+
+  T.group "Factorial" [
+    "f 5"          ==> Ok 120;
+    "5!"           ==> Ok 120;
   ];
 
   T.group "Check errors" [
