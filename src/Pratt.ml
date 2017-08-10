@@ -141,7 +141,7 @@ let satisfy test =
   | actual when test actual -> return actual
   | actual -> error (unexpected_token actual)
 
-let any s = (satisfy (const true)) s
+let any s = (satisfy (always true)) s
 
 let from list =
   satisfy (fun x -> List.mem x list)
