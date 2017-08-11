@@ -1,10 +1,9 @@
-B ../_build/default/examples
 B ../_build/default/src
+B ../_build/default/tests
 FLG -w -40 -open Pure
 PKG astring
 PKG bytes
 PKG fmt
-PKG iter
 PKG pure
 PKG result
 PKG uchar

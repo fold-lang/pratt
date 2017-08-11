@@ -12,7 +12,7 @@ let rec fac = function
 
 (* Basic calculator grammar. *)
 let calc =
-  [term               int;
+  grammar [term               int;
    prefix     '+'     (fun a -> a);
    infix   30 '+'     (fun a b -> a + b);
    prefix     '-'     (fun a -> -a);
@@ -27,13 +27,13 @@ let calc =
 
 (* Basic string lexer (ignores blank characters). *)
 let lexer =
-  Iter.string >> Iter.reject Char.Ascii.is_blank
+  Stream.of_string >> Stream.reject Char.Ascii.is_blank
 
 module T = Nanotest
 
 (* Helper testing function that parses the input and checks the result. *)
 let (==>) str expected =
-  let actual = run (parse calc) (lexer str) in
+  let actual = Result.map first (run (parse calc) (lexer str)) in
   let testable = T.(result int (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
   T.test testable str ~actual ~expected
 

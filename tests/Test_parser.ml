@@ -6,16 +6,16 @@ module T = Nanotest
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =
   let printer = T.result T.char (T.testable (P.pp_error Fmt.char)) in
-  let actual  = P.run parser (Iter.string input) in
-  let message = "\"" ^ input ^ "\"" in
-  T.test ~verbose:false printer message ~expected ~actual
+  let actual  = Result.map first <| P.run parser (P.Stream.of_string input) in
+  let message = "input: \"" ^ input ^ "\"" in
+  T.test ~verbose:true printer message ~expected ~actual
 
 let test_error () =
-  let (==>) = test P.(error Empty) in
+  let (==>) = test P.(error Zero) in
   T.group "Parser.error" [
-    ""    ==> Error P.Empty;
-    "a"   ==> Error P.Empty;
-    "abc" ==> Error P.Empty;
+    ""    ==> Error P.Zero;
+    "a"   ==> Error P.Zero;
+    "abc" ==> Error P.Zero;
   ]
 
 let test_expect () =

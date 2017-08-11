@@ -3,7 +3,7 @@
 (library
  ((name pratt)
   (public_name pratt)
-  (modules (Pratt))
-  (libraries (pure fmt iter astring))
+  (modules (Pratt Stream))
+  (libraries (pure fmt astring))
   (flags (:standard -open Pure -open Astring))))
 
