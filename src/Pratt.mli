@@ -5,6 +5,7 @@
  * Distributed under the ISC license, see LICENSE file.
  *)
 
+module Stream : module type of Stream
 
 (**
    Pratt is a library for simple top-down precedence parsing.
@@ -20,7 +21,7 @@ type 'token error =
   | Unexpected     of {expected : 'token option; actual : 'token option}
   | Invalid_infix  of 'token
   | Invalid_prefix of 'token
-  | Empty
+  | Zero
 (** The type of errors for tokens of type ['a]. *)
 
 val unexpected_token : ?expected : 'token -> 'token -> 'token error
@@ -192,7 +193,7 @@ val grammar : ('token, 'a) rule list -> ('token, 'a) grammar
 val parse : ('token, 'a) grammar -> ('token, 'a) parser
 (** [parse g] is the parser for the grammar [g]. *)
 
-val run : ('token, 'a) parser -> 'token Iter.t -> ('a * 'token Iter.t, 'token error) result
+val run : ('token, 'a) parser -> 'token Stream.t -> ('a * 'token Stream.t, 'token error) result
 (** [run p input] is the result of running the parser [p] with the given
     [input]. The parsed value is produced with the remaining input. *)
 

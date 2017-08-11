@@ -1,6 +1,8 @@
 
 open Pure
 
+module Stream = Stream
+
 module Hash_map = struct
   include Hashtbl
 
@@ -14,7 +16,7 @@ type 't error =
   | Unexpected     of { expected : 't option; actual : 't option }
   | Invalid_infix  of 't
   | Invalid_prefix of 't
-  | Empty
+  | Zero
 
 let unexpected_token ?expected actual =
   Unexpected {expected; actual = Some actual}
@@ -41,7 +43,7 @@ let error_to_string pp_token = function
     Fmt.strf "Syntax error: '%a' cannot be used in infix postion" pp_token token
   | Invalid_prefix token ->
     Fmt.strf "Syntax error: '%a' cannot be used in prefix position" pp_token token
-  | Empty ->
+  | Zero ->
     Fmt.strf "Syntax error: empty parser result"
 
 let pp_error pp_token ppf = function
@@ -52,9 +54,9 @@ let pp_error pp_token ppf = function
     Fmt.pf ppf "@[<2>Invalid_infix@ @[%a@] @]" pp_token token
   | Invalid_prefix token ->
     Fmt.pf ppf "@[<2>Invalid_prefix@ @[%a@] @]" pp_token token
-  | Empty -> Fmt.pf ppf "Empty"
+  | Zero -> Fmt.pf ppf "Empty"
 
-type ('t, 'a) parser = 't Iter.t -> ('a * 't Iter.t, 't error) result
+type ('t, 'a) parser = 't Stream.t -> ('a * 't Stream.t, 't error) result
 
 let return x =
   fun input -> Ok (x, input)
@@ -71,7 +73,7 @@ let put s = fun _ -> Ok ((), s)
 let get   = fun s -> Ok (s, s)
 
 
-let zero = fun _input -> Error Empty
+let zero = fun _input -> Error Zero
 
 let (<|>) p q = fun input ->
   match p input with
@@ -104,17 +106,17 @@ let error e =
 
 let advance s =
   let p =
-    get >>= fun state ->
-    match Iter.view state with
-    | Some (token, state') -> put state'
-    | None -> put state in
+    get >>= fun stream ->
+    match Stream.next stream with
+    | Some (token, stream') -> put stream'
+    | None -> put stream in
   p s
 
 let current = fun s ->
   let p = get >>= fun state ->
-    match Iter.view state with
+    match Stream.next state with
     | Some (token, _) -> return token
-    | None -> print "curr"; error (unexpected_end ()) in
+    | None -> error (unexpected_end ()) in
   p s
 
 let next s =
@@ -123,9 +125,9 @@ let next s =
     advance >>= fun () -> return x in
   p s
 
-let expect (expected : 't) =
-  get >>= fun state ->
-  match Iter.view state with
+let expect expected =
+  get >>= fun stream ->
+  match Stream.next stream with
   | Some (actual, _) when actual = expected -> return actual
   | Some (actual, _) -> error (unexpected_token ~expected actual)
   | None -> error (unexpected_end ~expected ())
@@ -208,8 +210,8 @@ let rec nud grammar rbp =
   parse grammar >>= led grammar rbp
 
 and led grammar rbp x =
-  get >>= fun state ->
-  match Iter.head state with
+  get >>= fun stream ->
+  match Stream.head stream with
   | Some token ->
     begin match Hash_map.get grammar.left token with
       | Some (parse, lbp) ->
@@ -229,13 +231,10 @@ let grammar rules =
 let parse grammar =
   nud grammar 0
 
-let run p state =
-  if Iter.is_empty state then
-    Error Empty
-  else
-    match p state with
-    | Ok (x, state') -> Ok (x, state')
-    | Error e -> Error e
+let run p stream =
+  match p stream with
+  | Ok (x, stream') -> Ok (x, stream')
+  | Error e -> Error e
 
 let rule token parse =
   Null (token, parse)
