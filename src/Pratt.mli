@@ -140,12 +140,32 @@ val choice : ('token, 'a) parser list -> ('token, 'a) parser
 (** [choice ps] is a parser that tries all the parsers in [ps] until one of
     them succeeds. *)
 
+val guard : bool -> ('token, unit) parser
+
+val when'  : bool -> ('token, unit) parser -> ('token, unit) parser
+val unless : bool -> ('token, unit) parser -> ('token, unit) parser
+
+val many_while : ('token -> bool) -> ('token, 'a) parser -> ('token, 'a list) parser
+(** [many_while test p] repeatedly runs the parser [p] while the input token
+    satisfies [test]. Stops when the token fails the [test] or if the input is
+    empty. *)
 
 (** {1:grammar Grammar} *)
 
 type ('token, 'a) grammar
 (** Grammar type holding parsing rules for tokens of type ['t] and parsed
     values of type ['a]. *)
+
+module Grammar : sig
+  type ('token, 'a) t = ('token, 'a) grammar
+
+  val has_null : 'token -> ('token, 'a) grammar -> bool
+  val has_left : 'token -> ('token, 'a) grammar -> bool
+end
+
+
+val nud : int -> ('token, 'a) grammar -> ('token, 'a) parser
+val led : int -> ('token, 'a) grammar -> 'a -> ('token, 'a) parser
 
 
 (** {1:rules Rules} *)
@@ -157,7 +177,7 @@ type ('token, 'a) rule
 val rule : 'token -> (('token, 'a) grammar -> ('token, 'a) parser) -> ('token, 'a) rule
 (** [rule t p] is a rule with parser [p] for prefix token [t]. *)
 
-val term : ('token, 'a) parser -> ('token, 'a) rule
+val term : (('token, 'a) grammar -> ('token, 'a) parser) -> ('token, 'a) rule
 (** [term p] is a parser for literals or variables. *)
 
 val infix : int -> 'token -> ('a -> 'a -> 'a) -> ('token, 'a) rule
@@ -184,14 +204,21 @@ val between : 'token -> 'token -> ('a -> 'a) -> ('token, 'a) rule
 val delimiter : 'token -> ('token, 'a) rule
 (** [delimiter token] is a rule that parses a delimiter [token]. *)
 
+val binary : ('a -> 'a -> 'a) -> ('token, 'a) grammar -> 'a -> ('token, 'a) parser
+val unary : ('a -> 'a) -> ('token, 'a) grammar -> ('token, 'a) parser
+
+val null :        'token -> (('token, 'a) grammar ->       ('token, 'a) parser) -> ('token, 'a) rule
+val left : int -> 'token -> (('token, 'a) grammar -> 'a -> ('token, 'a) parser) -> ('token, 'a) rule
+
 
 (** {1:parsing Parsing} *)
 
 val grammar : ('token, 'a) rule list -> ('token, 'a) grammar
 (** [grammar rules] is a grammar constructed with [rules]. *)
 
-val parse : ('token, 'a) grammar -> ('token, 'a) parser
-(** [parse g] is the parser for the grammar [g]. *)
+val parse : ?precedence: int -> ('token, 'a) grammar -> ('token, 'a) parser
+(** [parse ?precedence g] is the parser for the grammar [g] starting with
+    binding power [precedence]. *)
 
 val run : ('token, 'a) parser -> 'token Stream.t -> ('a * 'token Stream.t, 'token error) result
 (** [run p input] is the result of running the parser [p] with the given

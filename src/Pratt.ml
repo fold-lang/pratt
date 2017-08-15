@@ -109,13 +109,13 @@ let advance s =
     get >>= fun stream ->
     match Stream.next stream with
     | Some (token, stream') -> put stream'
-    | None -> put stream in
+    | None -> return () in
   p s
 
 let current = fun s ->
   let p = get >>= fun state ->
-    match Stream.next state with
-    | Some (token, _) -> return token
+    match Stream.head state with
+    | Some token -> return token
     | None -> error (unexpected_end ()) in
   p s
 
@@ -127,9 +127,9 @@ let next s =
 
 let expect expected =
   get >>= fun stream ->
-  match Stream.next stream with
-  | Some (actual, _) when actual = expected -> return actual
-  | Some (actual, _) -> error (unexpected_token ~expected actual)
+  match Stream.head stream with
+  | Some actual when actual = expected -> return actual
+  | Some actual -> error (unexpected_token ~expected actual)
   | None -> error (unexpected_end ~expected ())
 
 let consume tok =
@@ -160,27 +160,41 @@ let rec choice ps =
   | [] -> zero
   | p :: ps' -> p <|> choice ps'
 
+let guard = function
+  | true  -> return ()
+  | false -> zero
+
+let when' test m =
+   if test then m
+   else return ()
+
+let unless test m =
+   if test then return ()
+   else m
+
+let many_while test p =
+  many (current >>= (guard << test) >>= fun () -> p)
+
 
 type ('t, 'a) grammar = {
-  term : ('t, 'a) term;
+  term : ('t, 'a) null;
   null : ('t, ('t, 'a) null) Hash_map.t;
   left : ('t, ('t, 'a) left) Hash_map.t;
 }
 
-and ('t, 'a) term = ('t, 'a) parser
 and ('t, 'a) null = (('t, 'a) grammar ->       ('t, 'a) parser)
 and ('t, 'a) left = (('t, 'a) grammar -> 'a -> ('t, 'a) parser) * int
 
 type ('t, 'a) rule =
-  | Term of      ('t, 'a) term
+  | Term of      ('t, 'a) null
   | Null of 't * ('t, 'a) null
   | Left of 't * ('t, 'a) left
 
 module Grammar = struct
-  type ('t, 'a) t = ('a, 'a) grammar
+  type ('t, 'a) t = ('t, 'a) grammar
 
   let make () =
-    { term = (current >>= fun t -> error (Invalid_prefix t));
+    { term = (fun g -> current >>= fun t -> error (Invalid_prefix t));
       null = Hash_map.create 64;
       left = Hash_map.create 64 }
 
@@ -198,38 +212,47 @@ module Grammar = struct
     Fmt.pr "grammar.null:\n";
     Hash_map.iter (fun t _ -> Fmt.pr "%a\n" pp_token t) self.null;
     Fmt.pr "grammar.left:\n";
-    Hash_map.iter (fun t _ -> Fmt.pr "%a\n" pp_token t) self.left;
+    Hash_map.iter (fun t _ -> Fmt.pr "%a\n" pp_token t) self.left
+
+  let has_null token grammar =
+    is_some <| Hash_map.get grammar.null token
+
+  let has_left token grammar =
+    is_some <| Hash_map.get grammar.left token
 end
 
-let rec nud grammar rbp =
+let nud rbp grammar =
   current >>= fun token ->
   let parse =
     match Hash_map.get grammar.null token with
     | Some p -> p
-    | None -> (fun g -> grammar.term) in
-  parse grammar >>= led grammar rbp
+    | None -> grammar.term in
+  parse grammar
 
-and led grammar rbp x =
+let rec led rbp grammar x =
   get >>= fun stream ->
   match Stream.head stream with
   | Some token ->
     begin match Hash_map.get grammar.left token with
       | Some (parse, lbp) ->
         if lbp > rbp then
-          parse grammar x >>= led grammar rbp
+          parse grammar x >>= led rbp grammar
         else
           return x
       | None ->
-        error (Invalid_infix token)
+        (* Treat as delimiter, _i.e._, break. This is useful for multiple
+           top-level statements. In the future allow a custom handler. *)
+        (* Previous: error (Invalid_infix token) *)
+        return x
     end
   | None ->
     return x
 
+let parse ?precedence:(rbp = 0) grammar =
+  nud rbp grammar >>= led rbp grammar
+
 let grammar rules =
   List.fold_left Grammar.add (Grammar.make ()) rules
-
-let parse grammar =
-  nud grammar 0
 
 let run p stream =
   match p stream with
@@ -245,39 +268,54 @@ let term parse =
 let infix precedence token f =
   let parse grammar x =
     advance >>= fun () ->
-    nud grammar precedence >>= fun y ->
+    parse ~precedence grammar >>= fun y ->
     return (f x y) in
   Left (token, (parse, precedence))
 
 let infixr precedence token f =
   let parse grammar x =
     advance >>= fun () ->
-      nud grammar (precedence - 1) >>= fun y ->
-        return (f x y) in
+    parse ~precedence:(precedence - 1) grammar >>= fun y ->
+    return (f x y) in
   Left (token, (parse, precedence))
 
 let prefix token f =
   let parse grammar =
     advance >>= fun () ->
-    nud grammar 0 >>= fun x ->
+    parse grammar >>= fun x ->
     return (f x) in
   Null (token, parse)
 
 let postfix precedence token f =
   let parse grammar x =
     advance >>= fun () ->
-      return (f x) in
+    return (f x) in
   Left (token, (parse, precedence))
 
 let between token1 token2 f =
   let parse grammar =
     advance >>= fun () ->
-      nud grammar 0 >>= fun x ->
-        consume token2 >>= fun () ->
-          return (f x) in
+    parse grammar >>= fun x ->
+    consume token2 >>= fun () ->
+    return (f x) in
   Null (token1, parse)
 
 let delimiter token =
   let parse g x = error (Invalid_infix token) in
   Left (token, (parse, 0))
 
+let null token parse =
+  Null (token, parse)
+
+let left precedence token parse =
+  Left (token, (parse, precedence))
+
+let binary f = fun g a ->
+  advance >>= fun () ->
+  parse g >>= fun b ->
+  return (f a b)
+
+let unary f = fun g ->
+  advance >>= fun () ->
+  parse g >>= fun a ->
+  return (f a)
