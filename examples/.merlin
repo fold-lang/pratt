@@ -1,11 +1,14 @@
 B ../_build/default/examples
 B ../_build/default/src
-FLG -w -40 -open Pure
+FLG -ppx "../_build/default/.ppx/sedlex.ppx/ppx.exe --as-ppx"
+FLG -w -40
 PKG astring
 PKG bytes
 PKG fmt
+PKG gen
 PKG pure
 PKG result
+PKG sedlex
 PKG uchar
 PKG unix
 S ../src

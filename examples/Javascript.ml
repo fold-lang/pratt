@@ -1,10 +1,11 @@
 
+open Pure
 open Pratt
 
 
 module Syntax = struct
   type t =
-    [ `Identifier of string
+    [ `Symbol of string
     | `String of string
     | `Int of int
     | `Function of string * string list * t list
@@ -17,7 +18,7 @@ module Syntax = struct
 
   let rec pp formatter self =
     match self with
-    | `Identifier x ->
+    | `Symbol x ->
       Fmt.pf formatter "%s" x
 
     | `String x ->
@@ -50,44 +51,28 @@ module Syntax = struct
       Fmt.pf formatter "@[<4>var %s =@ %a@]" name pp value
 end
 
-type token = [
-  | `Keyword of string
-  | `Symbol of string
-  | `String of string
-  | `Int of int
-  | `Identifier of string
-]
-
-let pp_token ppf = function
-  | `Keyword x -> Fmt.pf ppf "%s" x
-  | `Symbol x -> Fmt.pf ppf "%s" x
-  | `String x -> Fmt.pf ppf "\"%s\"" x
-  | `Int x -> Fmt.pf ppf "%d" x
-  | `Identifier x -> Fmt.pf ppf "%s" x
-
-let literal g : (token, Syntax.t) parser =
+let literal g : (Lexer.token, Syntax.t) parser =
   next >>= function
-  | `Identifier x -> return (`Identifier x)
+  | `Symbol x -> return (`Symbol x)
   | `String x -> return (`String x)
   | `Int x -> return (`Int x)
   | t -> error (unexpected_token t)
 
-let identifier : (token, string) parser =
+let identifier : (Lexer.token, string) parser =
   next >>= function
-  | `Identifier x -> return x
+  | `Symbol x -> return x
   | t -> error (unexpected_token t)
 
 module Parser = struct
   let symbol x  = consume (`Symbol x)
-  let keyword x = consume (`Keyword x)
 
   let return' grammar =
-    keyword "return" >>= fun () ->
+    symbol "return" >>= fun () ->
     parse grammar >>= fun x ->
     return (`Return x)
 
   let var grammar =
-    keyword "var" >>= fun () ->
+    symbol "var" >>= fun () ->
     identifier >>= fun name ->
     symbol "=" >>= fun () ->
     parse grammar >>= fun value ->
@@ -95,28 +80,23 @@ module Parser = struct
     return res
 
   let function' grammar =
-    keyword "function" >>= fun () ->
+    symbol "function" >>= fun () ->
     identifier >>= fun name ->
     symbol "(" >>= fun () ->
     identifier >>= fun arg ->
     symbol ")" >>= fun () ->
     symbol "{" >>= fun () ->
-    many (parse grammar) >>= fun body ->
+    many_while (fun t -> not (Grammar.has_left t grammar)) (parse grammar) >>= fun body ->
     symbol "}" >>= fun () ->
     return (`Function (name, [arg], body))
 
 
   let parse = Pratt.parse <| grammar [
     term literal;
+    null (`Symbol "var")    var;
+    null (`Symbol "function") function';
+    null (`Symbol "return")   return';
     delimiter (`Symbol "}");
-    delimiter (`Keyword "return");
-    delimiter (`Keyword "function");
-    delimiter (`Keyword "var");
-    delimiter (`Symbol "=");
-    delimiter (`Symbol ":");
-    null (`Keyword "var")    var;
-    null (`Keyword "function") function';
-    null (`Keyword "return")   return';
 
     left 30 (`Symbol "+") (binary (fun a b -> (`Binary ("+", a, b))));
     null (`Symbol "+") (unary (fun a -> (`Unary ("+", a))));
@@ -131,24 +111,14 @@ module Parser = struct
   ]
 end
 
-let program = [
-  `Keyword "function";
-  `Identifier "hello";
-  `Symbol "(";
-  `Identifier "name";
-  `Symbol ")";
-  `Symbol "{";
-  `Keyword "var"; `Identifier "x"; `Symbol "=";
-  `Identifier "name"; `Symbol "?"; `Identifier "name"; `Symbol ":"; `String "Hello, world!";
-  `Keyword "return"; `Identifier "x";
-  `Symbol "}";
-
-  `Keyword "var"; `Identifier "y"; `Symbol "=";
-  `Int 42; `Symbol "+"; `Int 0;
-
-  `Keyword "var"; `Identifier "z"; `Symbol "=";
-  `Symbol "+"; `Int 4;
-]
+let input = {|
+function hello(name) {
+    var x = name ? name : "Hello, world!"
+    return x
+}
+var y = 42 + 0
+var z = +4
+|}
 
 let main =
   let rec loop input =
@@ -159,6 +129,6 @@ let main =
         Fmt.pr "%a@." Syntax.pp result;
         loop input'
       | Error Zero -> ()
-      | Error e -> Fmt.pr "main: %s@." (error_to_string pp_token e) in
-  loop (Stream.of_list program)
+      | Error e -> Fmt.pr "main: %s@." (error_to_string Lexer.pp_token e) in
+  loop (Lexer.(to_stream (of_string input)))
 
