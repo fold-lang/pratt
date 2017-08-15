@@ -2,7 +2,7 @@ open Local
 open Pratt
 
 (* Integer parser for char tokens. *)
-let int =
+let int g =
   some (range '0' '9') >>= fun (x, xs) ->
   return (Int.force_of_string (String.implode (x :: xs)))
 
@@ -12,18 +12,19 @@ let rec fac = function
 
 (* Basic calculator grammar. *)
 let calc =
-  grammar [term               int;
-   prefix     '+'     (fun a -> a);
-   infix   30 '+'     (fun a b -> a + b);
-   prefix     '-'     (fun a -> -a);
-   infix   30 '-'     (fun a b -> a - b);
-   infix   40 '*'     (fun a b -> a * b);
-   infix   40 '/'     (fun a b -> a / b);
-   between    '(' ')' (fun a -> a);
+  grammar [
+   term       int;
+   null       '+'     (unary identity);
+   left    30 '+'     (binary ( + ));
+   null       '-'     (unary ( ~- ));
+   left    30 '-'     (binary ( - ));
+   left    40 '*'     (binary ( * ));
+   left    40 '/'     (binary ( / ));
+   postfix 70 '!'     (fun a   -> fac a);
+   between    '(' ')' (fun a   -> a);
    delimiter  ')';
-   postfix 70 '!'     (fun a -> fac a);
-   prefix     'f'     (fun a -> fac a);
   ]
+
 
 (* Basic string lexer (ignores blank characters). *)
 let lexer =
@@ -36,6 +37,17 @@ let (==>) str expected =
   let actual = Result.map first (run (parse calc) (lexer str)) in
   let testable = T.(result int (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
   T.test testable str ~actual ~expected
+
+
+let stream =
+  T.testable ~equal:(fun a b -> Stream.(to_list a == to_list b))
+    (Fmt.of_to_string (always "<stream>"))
+
+let (==>!) str expected =
+  let actual = run (parse calc) (lexer str) in
+  let testable = T.(result (pair int stream) (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
+  T.test testable str ~actual ~expected
+
 
 (* Tests *)
 let () =
@@ -53,8 +65,8 @@ let () =
   ];
 
   T.group "Factorial" [
-    "f 5"          ==> Ok 120;
     "5!"           ==> Ok 120;
+    "0!"           ==> Ok 1;
   ];
 
   T.group "Check errors" [
@@ -63,6 +75,7 @@ let () =
     "/"            ==> Error (unexpected_token '/');
     "2 /"          ==> Error (unexpected_end ());
     "2 / -"        ==> Error (unexpected_end ());
-    "2 ("          ==> Error (invalid_infix '(');
+    "2 ("          ==>! Ok (2, Stream.of_list ['(']);
+    (* XXX: Alternatively fail with unexpected ( *)
   ]
 
