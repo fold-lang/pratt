@@ -150,6 +150,9 @@ val many_while : ('token -> bool) -> ('token, 'a) parser -> ('token, 'a list) pa
     satisfies [test]. Stops when the token fails the [test] or if the input is
     empty. *)
 
+val some_while : ('token -> bool) -> ('token, 'a) parser -> ('token, 'a * 'a list) parser
+(** [some_while test p] is just like [many_while] except it parser at least one ['a]. *)
+
 (** {1:grammar Grammar} *)
 
 type ('token, 'a) grammar

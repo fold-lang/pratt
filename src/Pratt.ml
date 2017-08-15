@@ -175,6 +175,8 @@ let unless test m =
 let many_while test p =
   many (current >>= (guard << test) >>= fun () -> p)
 
+let some_while test p =
+  some (current >>= (guard << test) >>= fun () -> p)
 
 type ('t, 'a) grammar = {
   term : ('t, 'a) null;

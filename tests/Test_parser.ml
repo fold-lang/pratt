@@ -73,7 +73,7 @@ let test_from () =
 
 let test_while () =
   let (==>) input = test' P.(many_while ((!=) 'x') any) input in
-  T.group "Parser.while'" [
+  T.group "Parser.many_while" [
     ""         ==> Ok [];
     "ax"       ==> Ok ['a'];
     "abcx"     ==> Ok ['a'; 'b'; 'c'];
