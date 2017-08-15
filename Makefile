@@ -2,6 +2,14 @@
 build:
 	jbuilder build -j4
 
+install: build
+	jbuilder install
+
+uninstall:
+	jbuilder uninstall
+
+reinstall: uninstall install
+
 test:
 	jbuilder runtest
 
