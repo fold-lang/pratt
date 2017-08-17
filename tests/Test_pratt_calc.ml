@@ -72,7 +72,7 @@ let () =
   T.group "Check errors" [
     "x"            ==> Error (unexpected_token 'x');
     ""             ==> Error (unexpected_end ());
-    "/"            ==> Error (unexpected_token '/');
+    "/"            ==> Error (invalid_prefix '/');
     "2 /"          ==> Error (unexpected_end ());
     "2 / -"        ==> Error (unexpected_end ());
     "2 ("          ==>! Ok (2, Stream.of_list ['(']);

@@ -75,6 +75,25 @@ let test_while () =
   let (==>) input = test' P.(many_while ((!=) 'x') any) input in
   T.group "Parser.many_while" [
     ""         ==> Ok [];
+    "x"        ==> Ok [];
+    "ax"       ==> Ok ['a'];
+    "abcx"     ==> Ok ['a'; 'b'; 'c'];
+    "abcxxx"   ==> Ok ['a'; 'b'; 'c'];
+    "abc"      ==> Ok ['a'; 'b'; 'c'];
+  ]
+
+let test_many () =
+  let (==>) input = test' P.(many any) input in
+  T.group "Parser.many_while" [
+    ""         ==> Ok [];
+    "ax"       ==> Ok ['a'];
+    "abc"      ==> Ok ['a'; 'b'; 'c'];
+  ]
+
+let test_many_while () =
+  let (==>) input = test' P.(many_while ((!=) 'x') any) input in
+  T.group "Parser.many_while" [
+    ""         ==> Ok [];
     "ax"       ==> Ok ['a'];
     "abcx"     ==> Ok ['a'; 'b'; 'c'];
     "abc"      ==> Ok ['a'; 'b'; 'c'];
@@ -87,6 +106,7 @@ let () = begin
   test_satisfy ();
   test_any ();
   test_from ();
-  test_while ();
+  test_many ();
+  test_many_while ();
 end
 

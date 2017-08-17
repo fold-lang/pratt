@@ -1,134 +1,158 @@
 
 open Pure
-open Pratt
+
+module P = Pratt
+module L = Lexer
+
+let (>>=) = P.(>>=)
+let return = P.return
 
 
-module Syntax = struct
+let separated_by sep p =
+  p >>= fun x ->
+  P.many (sep >>= fun () -> p) >>= fun xs ->
+  return (x :: xs)
+
+
+module AST = struct
   type t =
-    [ `Symbol of string
-    | `String of string
-    | `Int of int
-    | `Function of string * string list * t list
-    | `Ternary of t * t * t
-    | `Call of t * t list
-    | `Binary of string * t * t
-    | `Unary of string * t
-    | `Return of t
-    | `Var of string * t ]
+    | Symbol of string
+    | Identifier of string
+    | String of string
+    | Int of int
+    | Function of string option * string list * t list
+    | Ternary of t * t * t
+    | Call of t * t list
+    | Binary of string * t * t
+    | Unary of string * t
+    | Return of t
+    | Var of string * t
 
   let rec pp formatter self =
     match self with
-    | `Symbol x ->
+    | Symbol x | Identifier x ->
       Fmt.pf formatter "%s" x
 
-    | `String x ->
+    | String x ->
       Fmt.pf formatter "\"%s\"" x
 
-    | `Int x ->
+    | Int x ->
       Fmt.pf formatter "%d" x
 
-    | `Return x ->
+    | Return x ->
       Fmt.pf formatter "return %a" pp x
 
-    | `Function (name, args, body) ->
-      Fmt.pf formatter "@[<v4>function %s(@[<v>%a@]) {@,%a@]@,}" name
-        Fmt.(list ~sep:(always "@,") string) args
+    | Function (name_opt, args, body) ->
+      Fmt.pf formatter "@[<v>@[<v4>function%s(@[<hv>%a@]) {@,%a@]@,@]}"
+        (option "" ((^) " ") name_opt)
+        Fmt.(list ~sep:(always ", @,") string) args
         Fmt.(list ~sep:(always "@,") pp) body
 
-    | `Call (f, xs) ->
+    | Call (f, xs) ->
       Fmt.pf formatter "@[<4>%a(@,%a@]@,)" pp f Fmt.(list ~sep:(always ",@ ") pp) xs
 
-    | `Ternary (t, a, b) ->
+    | Ternary (t, a, b) ->
       Fmt.pf formatter "@[<4>%a@ @,?@ %a@, :@ %a@]" pp t pp a pp b
 
-    | `Binary (op, a, b) ->
+    | Binary (op, a, b) ->
       Fmt.pf formatter "@[<4>%a@, %s@ %a@]" pp a op pp b
 
-    | `Unary (op, a) ->
+    | Unary (op, a) ->
       Fmt.pf formatter "%s%a" op pp a
 
-    | `Var (name, value) ->
+    | Var (name, value) ->
       Fmt.pf formatter "@[<4>var %s =@ %a@]" name pp value
 end
 
-let literal g : (Lexer.token, Syntax.t) parser =
-  next >>= function
-  | `Symbol x -> return (`Symbol x)
-  | `String x -> return (`String x)
-  | `Int x -> return (`Int x)
-  | t -> error (unexpected_token t)
+let literal g : (Lexer.token, AST.t) P.parser =
+  P.next >>= function
+  | L.Identifier x -> return (AST.Identifier x)
+  | L.String x -> return (AST.String x)
+  | L.Int x -> return (AST.Int x)
+  | t -> P.error (P.unexpected_token t)
 
-let identifier : (Lexer.token, string) parser =
-  next >>= function
-  | `Symbol x -> return x
-  | t -> error (unexpected_token t)
+let identifier : (Lexer.token, string) P.parser =
+  P.current >>= function
+  | L.Identifier x -> P.advance >>= fun () -> return x
+  | t -> P.error (P.unexpected_token t)
 
 module Parser = struct
-  let symbol x  = consume (`Symbol x)
+  let keyword x  = P.consume (L.Keyword x)
+  let delimiter x  = P.consume (L.Delimeter x)
+  let operator x  = P.consume (L.Operator x)
 
   let return' grammar =
-    symbol "return" >>= fun () ->
-    parse grammar >>= fun x ->
-    return (`Return x)
+    keyword "return" >>= fun () ->
+    P.parse grammar >>= fun x ->
+    return (AST.Return x)
 
   let var grammar =
-    symbol "var" >>= fun () ->
+    keyword "var" >>= fun () ->
     identifier >>= fun name ->
-    symbol "=" >>= fun () ->
-    parse grammar >>= fun value ->
-    let res = `Var (name, value) in
+    operator "=" >>= fun () ->
+    P.parse grammar >>= fun value ->
+    let res = AST.Var (name, value) in
     return res
 
   let function' grammar =
-    symbol "function" >>= fun () ->
-    identifier >>= fun name ->
-    symbol "(" >>= fun () ->
-    identifier >>= fun arg ->
-    symbol ")" >>= fun () ->
-    symbol "{" >>= fun () ->
-    many_while (fun t -> not (Grammar.has_left t grammar)) (parse grammar) >>= fun body ->
-    symbol "}" >>= fun () ->
-    return (`Function (name, [arg], body))
+    keyword "function" >>= fun () ->
+    P.default None (identifier >>= (return << Option.some)) >>= fun name_opt ->
+    delimiter "(" >>= fun () ->
+    P.default [] (identifier |> separated_by (delimiter ",")) >>= fun args ->
+    delimiter ")" >>= fun () ->
+    delimiter "{" >>= fun () ->
+    P.many (P.parse grammar) >>= fun body ->
+    delimiter "}" >>= fun () ->
+    return (AST.Function (name_opt, args, body))
+
+  let parse = P.parse <| P.grammar [
+    P.term literal;
+    P.null (L.Keyword "var") var;
+    P.null (L.Keyword "function") function';
+    P.null (L.Keyword "return") return';
+    P.delimiter (L.Delimeter "}");
+    P.delimiter (L.Delimeter "=");
+    P.delimiter (L.Delimeter ",");
+    P.delimiter (L.Delimeter "(");
+    P.delimiter (L.Delimeter ")");
 
 
-  let parse = Pratt.parse <| grammar [
-    term literal;
-    null (`Symbol "var")    var;
-    null (`Symbol "function") function';
-    null (`Symbol "return")   return';
-    delimiter (`Symbol "}");
+    P.left 30 (L.Operator "+") (P.binary (fun a b -> (AST.Binary ("+", a, b))));
+    P.null (L.Operator "+") (P.unary (fun a -> (AST.Unary ("+", a))));
 
-    left 30 (`Symbol "+") (binary (fun a b -> (`Binary ("+", a, b))));
-    null (`Symbol "+") (unary (fun a -> (`Unary ("+", a))));
-
-    left 20 (`Symbol "?") begin fun g condition ->
-      consume (`Symbol "?") >>= fun () ->
-      parse g >>= fun consequence ->
-      consume (`Symbol ":") >>= fun () ->
-      parse g >>= fun alternative ->
-      return (`Ternary (condition, consequence, alternative))
+    P.left 20 (L.Operator "?") begin fun g condition ->
+      P.consume (L.Operator "?") >>= fun () ->
+      P.parse g >>= fun consequence ->
+      P.consume (L.Operator ":") >>= fun () ->
+      P.parse g >>= fun alternative ->
+      return (AST.Ternary (condition, consequence, alternative))
     end;
   ]
 end
 
+
 let input = {|
-function hello(name) {
+function hello(name, a) {
     var x = name ? name : "Hello, world!"
     return x
 }
 var y = 42 + 0
 var z = +4
+
+var sum = function(x, y) { return x + y }
+
+var partial_sum = function(x) { return function (y) { return x + y } }
+
 |}
 
 let main =
   let rec loop input =
-    if Stream.is_empty input then
-      Fmt.pr "main: done@."
-    else match run Parser.parse input with
+    if not (P.Stream.is_empty input) then
+    match P.run Parser.parse input with
       | Ok (result, input') ->
-        Fmt.pr "%a@." Syntax.pp result;
+        Fmt.pr "%a@." AST.pp result;
         loop input'
       | Error Zero -> ()
-      | Error e -> Fmt.pr "main: %s@." (error_to_string Lexer.pp_token e) in
+      | Error e -> Fmt.pr "main: %s@." (P.error_to_string Lexer.pp_token e) in
   loop (Lexer.(to_stream (of_string input)))
 

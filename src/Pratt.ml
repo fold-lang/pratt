@@ -1,6 +1,9 @@
 
 open Pure
 
+
+(* TODO: When failing show the so-far parsed result. *)
+
 module Stream = Stream
 
 module Hash_map = struct
@@ -225,11 +228,14 @@ end
 
 let nud rbp grammar =
   current >>= fun token ->
-  let parse =
-    match Hash_map.get grammar.null token with
-    | Some p -> p
-    | None -> grammar.term in
-  parse grammar
+  match Hash_map.get grammar.null token with
+  | Some parse -> parse grammar
+  | None ->
+    (* Infix tokens can only be a valid prefix if they are directly defined. *)
+    if Grammar.has_left token grammar then
+      error (invalid_prefix token)
+    else
+      grammar.term grammar
 
 let rec led rbp grammar x =
   get >>= fun stream ->
@@ -252,6 +258,21 @@ let rec led rbp grammar x =
 
 let parse ?precedence:(rbp = 0) grammar =
   nud rbp grammar >>= led rbp grammar
+
+let parse_many grammar =
+  many begin
+    current >>= fun token ->
+    guard (not (Grammar.has_left token grammar)) >>= fun () ->
+    parse grammar
+  end
+
+let parse_some grammar =
+  some begin
+    current >>= fun token ->
+    guard (not (Grammar.has_left token grammar)) >>= fun () ->
+    parse grammar
+  end
+
 
 let grammar rules =
   List.fold_left Grammar.add (Grammar.make ()) rules

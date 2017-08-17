@@ -1,6 +1,6 @@
 
 build:
-	jbuilder build -j4
+	jbuilder build -j4 @install
 
 install: build
 	jbuilder install
@@ -21,6 +21,9 @@ shell: build
 
 watch:
 	ls src/*.ml* tests/*.ml* | entr -cr make test
+
+watch-js:
+	ls src/*.ml* examples/*.ml* | entr -cr sh -c 'jbuilder build examples/Javascript.exe; ./_build/default/examples/Javascript.exe'
 
 .PHONY: test all clean
 

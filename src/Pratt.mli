@@ -164,6 +164,8 @@ module Grammar : sig
 
   val has_null : 'token -> ('token, 'a) grammar -> bool
   val has_left : 'token -> ('token, 'a) grammar -> bool
+
+  val dump : 'token printer -> ('token, 'a) t -> unit
 end
 
 
@@ -201,8 +203,6 @@ val postfix : int -> 'token -> ('a -> 'a) -> ('token, 'a) rule
     [token] with given [precedence] applying [f] to the {e lhs} expression. *)
 
 val between : 'token -> 'token -> ('a -> 'a) -> ('token, 'a) rule
-(** [between s e f] is a rule that parses expressions occurring between the
-    [s] and [e] tokens applying [f] to the expression. *)
 
 val delimiter : 'token -> ('token, 'a) rule
 (** [delimiter token] is a rule that parses a delimiter [token]. *)
@@ -222,6 +222,9 @@ val grammar : ('token, 'a) rule list -> ('token, 'a) grammar
 val parse : ?precedence: int -> ('token, 'a) grammar -> ('token, 'a) parser
 (** [parse ?precedence g] is the parser for the grammar [g] starting with
     binding power [precedence]. *)
+
+val parse_many : ('token, 'a) grammar -> ('token, 'a list) parser
+val parse_some : ('token, 'a) grammar -> ('token, 'a * 'a list) parser
 
 val run : ('token, 'a) parser -> 'token Stream.t -> ('a * 'token Stream.t, 'token error) result
 (** [run p input] is the result of running the parser [p] with the given

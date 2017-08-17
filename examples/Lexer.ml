@@ -1,24 +1,66 @@
+open Astring
 
 let format, undefined = Pure.(format, undefined)
 
-type token = [
-  | `Bool   of bool         (* True False       *)
-  | `Char   of char         (* 'x' '-' '0' '\t' *)
-  | `Float  of float        (* 3.14 00.1 1.0000 *)
-  | `Int    of int          (* 100 42 0 012345  *)
-  | `String of string       (* "hello" "" "x"   *)
-  | `Symbol of string       (* a foo Bar + >>=  *)
-]
+let decimal_int =
+  [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_')]
+
+let hex_int =
+  [%sedlex.regexp?
+    '0', Chars "xX", ('0'..'9' | 'A'..'F' | 'a'..'f'),
+    Star ('0'..'9' | 'A'..'F' | 'a'..'f' | '_')]
+
+let oct_int =
+  [%sedlex.regexp? '0', Chars "oO", '0'..'7', Star ('0'..'7' | '_') ]
+
+let bin_int =
+  [%sedlex.regexp? '0', Chars "bB", '0'..'1', Star ('0'..'1' | '_') ]
+
+let int =
+  [%sedlex.regexp? decimal_int | hex_int | oct_int | bin_int ]
+
+let float =
+  [%sedlex.regexp?
+    '0'..'9', Star ('0'..'9' | '_'),
+    Opt ('.', Star ('0'..'9' | '_')),
+    Opt (Chars "eE", Opt (Chars "+-"), '0'..'9', Star ('0'..'9' | '_'))]
+
+let identifier =
+  [%sedlex.regexp? Plus (alphabetic | Chars "_'")]
+
+let delimeter =
+  [%sedlex.regexp? Chars "{}[],;"]
+
+let comment =
+  [%sedlex.regexp? "//", Star (Compl '\n')]
+
+let white_space =
+  [%sedlex.regexp? Plus (' ' | '\t')]
+
+type token =
+  | Bool of bool
+  | Char of char
+  | Float of float
+  | Int of int
+  | String of string
+  | Operator of string
+  | Delimeter of string
+  | Identifier of string
+  | Keyword of string
+  [@@deriving show, ord, eq]
 
 let rec pp_token ppf token =
   let open Fmt in
   match token with
-  | `Bool v   -> pf ppf "%b" v
-  | `Char v   -> pf ppf "%c" v
-  | `Float v  -> pf ppf "%f" v
-  | `Int v    -> pf ppf "%d" v
-  | `String v -> pf ppf "%s" v
-  | `Symbol v -> pf ppf "`%s" v
+  | Bool v       -> pf ppf "%b" v
+  | Char v       -> pf ppf "%c" v
+  | Float v      -> pf ppf "%f" v
+  | Int v        -> pf ppf "%d" v
+  | String v     -> pf ppf "\"%s\"" v
+  | Operator v
+  | Delimeter v
+  | Identifier v
+  | Keyword v    -> pf ppf "%s" v
 
 module Location = struct
   type t =
@@ -34,49 +76,6 @@ module Location = struct
   let to_string self =
     format "%d,%d/%d" self.line self.column self.length
 end
-
-
-let decimal_literal =
-  [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_')]
-
-let hex_literal =
-  [%sedlex.regexp?
-    '0', Chars "xX", ('0'..'9' | 'A'..'F' | 'a'..'f'),
-    Star ('0'..'9' | 'A'..'F' | 'a'..'f' | '_')]
-
-let oct_literal =
-  [%sedlex.regexp? '0', Chars "oO", '0'..'7', Star ('0'..'7' | '_') ]
-
-let bin_literal =
-  [%sedlex.regexp? '0', Chars "bB", '0'..'1', Star ('0'..'1' | '_') ]
-
-let int_literal =
-  [%sedlex.regexp? decimal_literal | hex_literal | oct_literal | bin_literal ]
-
-let float_literal =
-  [%sedlex.regexp?
-    '0'..'9', Star ('0'..'9' | '_'),
-    Opt ('.', Star ('0'..'9' | '_')),
-    Opt (Chars "eE", Opt (Chars "+-"), '0'..'9', Star ('0'..'9' | '_'))]
-
-let identifier_char =
-  [%sedlex.regexp? alphabetic | Chars "_'"]
-
-let operator_char =
-  [%sedlex.regexp? Chars "!$%&*+-./\\:<=>?@^|~#" ]
-
-let delimeter_char =
-  [%sedlex.regexp? Chars "{}[]`,;\"'"]
-
-let name_literal =
-  [%sedlex.regexp? Plus (operator_char | delimeter_char)]
-
-let comment =
-  [%sedlex.regexp? "--", Star (Compl '\n')]
-
-let white_space =
-  [%sedlex.regexp? Plus (' ' | '\t')]
-
 
 type t =
   { mutable lexbuf      : Sedlexing.lexbuf;
@@ -117,26 +116,61 @@ let error self message =
 let rec read self =
   let lexbuf = self.lexbuf in
   match%sedlex lexbuf with
+
+  (* Operators *)
+  | "!="   -> Operator (current_lexeme self)
+  | "!=="  -> Operator (current_lexeme self)
+  | "%"    -> Operator (current_lexeme self)
+  | "%="   -> Operator (current_lexeme self)
+  | "&"    -> Operator (current_lexeme self)
+  | "&&"   -> Operator (current_lexeme self)
+  | "&="   -> Operator (current_lexeme self)
+  | "*"    -> Operator (current_lexeme self)
+  | "*="   -> Operator (current_lexeme self)
+  | "+"    -> Operator (current_lexeme self)
+  | "++"   -> Operator (current_lexeme self)
+  | "+="   -> Operator (current_lexeme self)
+  | "-"    -> Operator (current_lexeme self)
+  | "--"   -> Operator (current_lexeme self)
+  | "-="   -> Operator (current_lexeme self)
+  | "/"    -> Operator (current_lexeme self)
+  | "/="   -> Operator (current_lexeme self)
+  | ":"    -> Operator (current_lexeme self)
+  | "<"    -> Operator (current_lexeme self)
+  | "<<"   -> Operator (current_lexeme self)
+  | "<<="  -> Operator (current_lexeme self)
+  | "<="   -> Operator (current_lexeme self)
+  | "="    -> Operator (current_lexeme self)
+  | "=="   -> Operator (current_lexeme self)
+  | "==="  -> Operator (current_lexeme self)
+  | ">"    -> Operator (current_lexeme self)
+  | ">="   -> Operator (current_lexeme self)
+  | ">>"   -> Operator (current_lexeme self)
+  | ">>="  -> Operator (current_lexeme self)
+  | ">>>"  -> Operator (current_lexeme self)
+  | ">>>=" -> Operator (current_lexeme self)
+  | "?"    -> Operator (current_lexeme self)
+  | "^="   -> Operator (current_lexeme self)
+  | "|"    -> Operator (current_lexeme self)
+  | "|="   -> Operator (current_lexeme self)
+  | "||"   -> Operator (current_lexeme self)
+
   (* Whitespace and comment *)
   | Plus (white_space | comment) ->
     read self
 
   (* Int literal *)
-  | int_literal ->
-    `Int (int_of_string (current_lexeme self))
+  | int ->
+    Int (int_of_string (current_lexeme self))
 
   (* Float literal *)
-  | float_literal ->
-    `Float (float_of_string (current_lexeme self))
-
-  (* Unit literal *)
-  | '(', Star ((white_space | '\n') | comment), ')' ->
-    `Symbol "()"
+  | float ->
+    Float (float_of_string (current_lexeme self))
 
   (* Group start *)
   | '('  ->
     self.group_count <- (self.group_count + 1);
-    `Symbol (current_lexeme self)
+    Delimeter (current_lexeme self)
 
   (* Group end *)
   | ')' ->
@@ -145,26 +179,36 @@ let rec read self =
     if self.group_count < 0 then
       error self "unbalanced parenthesis"
     else
-      `Symbol (current_lexeme self)
+      Delimeter (current_lexeme self)
 
-  (* XXX: Quoted symbols are not part of the lexer for now. *)
-  (* | '`',  (name_literal | Plus identifier_char) -> *)
-  (* let lexeme = current_lexeme self in *)
-  (* Symbol (String.sub lexeme 1 (String.length lexeme - 1)) *)
+  (* Delimiters *)
+  | delimeter ->
+    Delimeter (current_lexeme self)
 
+  (* Strings *)
   | '"',  Star (Compl '"'), '"' ->
     let lexeme = current_lexeme self in
-    `String (String.sub lexeme 1 (String.length lexeme - 2))
+    let s = String.(Sub.to_string (sub lexeme ~start:1 ~stop:(length lexeme - 2))) in
+    String s
 
+  (* Chars *)
   | '\'', Compl '\'', '\'' ->
-    `Char (String.get (current_lexeme self) 1)
+    Char (String.get (current_lexeme self) 1)
 
-  | "True"  -> `Bool true
-  | "False" -> `Bool false
+  (* Booleans *)
+  | "true"  -> Bool true
+  | "false" -> Bool false
 
-  (* Names (operators and identifiers) *)
-  | name_literal | Plus identifier_char ->
-    `Symbol (current_lexeme self)
+  (* Keywords *)
+  | "function" -> Keyword (current_lexeme self)
+  | "var"      -> Keyword (current_lexeme self)
+  | "return"   -> Keyword (current_lexeme self)
+  | "for"      -> Keyword (current_lexeme self)
+  | "while"    -> Keyword (current_lexeme self)
+
+  (* Identifiers *)
+  | identifier ->
+    Identifier (current_lexeme self)
 
   (* Newline symbol *)
   | '\n' ->
@@ -182,7 +226,7 @@ let rec read self =
   | _ -> undefined ()
 
 
-let of_lexbuf lexbuf =
+let from_lexbuf lexbuf =
   { lexbuf;
     line_start  = 0;
     line_count  = 0;
@@ -190,10 +234,10 @@ let of_lexbuf lexbuf =
 
 
 let of_string s =
-  of_lexbuf (Sedlexing.Utf8.from_string s)
+  from_lexbuf (Sedlexing.Utf8.from_string s)
 
 let of_channel c =
-  of_lexbuf (Sedlexing.Utf8.from_channel c)
+  from_lexbuf (Sedlexing.Utf8.from_channel c)
 
 let rec to_stream lexer =
   try
@@ -201,7 +245,3 @@ let rec to_stream lexer =
     Pratt.Stream.Yield (token, fun () -> to_stream lexer)
   with End_of_file ->
     Pratt.Stream.Empty
-
-
-
-
