@@ -2,6 +2,6 @@
 
 (executables
   ((names (Javascript))
-   (libraries (pratt fmt unix sedlex))
+   (libraries (pratt astring fmt unix sedlex))
    (preprocess (pps (sedlex.ppx)))))
 

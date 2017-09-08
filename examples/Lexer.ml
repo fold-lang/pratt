@@ -1,6 +1,6 @@
-open Astring
+module String = Astring.String
 
-let format, undefined = Pure.(format, undefined)
+let format, undefined = Kernel.(format, undefined)
 
 let decimal_int =
   [%sedlex.regexp? '0'..'9', Star ('0'..'9' | '_')]
@@ -29,7 +29,7 @@ let identifier =
   [%sedlex.regexp? Plus (alphabetic | Chars "_'")]
 
 let delimeter =
-  [%sedlex.regexp? Chars "{}[],;"]
+  [%sedlex.regexp? Chars "{}[],;:="]
 
 let comment =
   [%sedlex.regexp? "//", Star (Compl '\n')]
@@ -57,10 +57,15 @@ let rec pp_token ppf token =
   | Float v      -> pf ppf "%f" v
   | Int v        -> pf ppf "%d" v
   | String v     -> pf ppf "\"%s\"" v
-  | Operator v
-  | Delimeter v
-  | Identifier v
-  | Keyword v    -> pf ppf "%s" v
+  | Operator v   -> pf ppf "[operator %s]" v
+  | Delimeter v  -> pf ppf "[delimeter %s]" v
+  | Identifier v -> pf ppf "[identifier %s]" v
+  | Keyword v    -> pf ppf "[keyword %s]" v
+
+module Token = struct
+  type t = token
+  let pp = pp_token
+end
 
 module Location = struct
   type t =
@@ -135,12 +140,10 @@ let rec read self =
   | "-="   -> Operator (current_lexeme self)
   | "/"    -> Operator (current_lexeme self)
   | "/="   -> Operator (current_lexeme self)
-  | ":"    -> Operator (current_lexeme self)
   | "<"    -> Operator (current_lexeme self)
   | "<<"   -> Operator (current_lexeme self)
   | "<<="  -> Operator (current_lexeme self)
   | "<="   -> Operator (current_lexeme self)
-  | "="    -> Operator (current_lexeme self)
   | "=="   -> Operator (current_lexeme self)
   | "==="  -> Operator (current_lexeme self)
   | ">"    -> Operator (current_lexeme self)
@@ -188,7 +191,7 @@ let rec read self =
   (* Strings *)
   | '"',  Star (Compl '"'), '"' ->
     let lexeme = current_lexeme self in
-    let s = String.(Sub.to_string (sub lexeme ~start:1 ~stop:(length lexeme - 2))) in
+    let s = String.(Sub.to_string (sub lexeme ~start:1 ~stop:(length lexeme - 1))) in
     String s
 
   (* Chars *)

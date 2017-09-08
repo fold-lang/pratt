@@ -1,8 +1,10 @@
 B ../_build/default/src
-FLG -open Pratt__ -w -40 -open Pure -open Astring
+FLG -open Pratt__ -w -40 -open Proto -open Astring
 PKG astring
 PKG bytes
 PKG fmt
-PKG pure
+PKG proto
+PKG proto.kernel
+PKG proto.shadow-stdlib
 PKG result
 PKG uchar

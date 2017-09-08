@@ -1,12 +1,14 @@
 B ../_build/default/examples
 B ../_build/default/src
-FLG -ppx "../_build/default/.ppx/sedlex.ppx/ppx.exe --as-ppx"
+FLG -ppx '/Users/rizo/Developer/OCaml/Code/pratt/_build/default/.ppx/sedlex.ppx/ppx.exe --as-ppx'
 FLG -w -40
 PKG astring
 PKG bytes
 PKG fmt
 PKG gen
-PKG pure
+PKG proto
+PKG proto.kernel
+PKG proto.shadow-stdlib
 PKG result
 PKG sedlex
 PKG uchar
