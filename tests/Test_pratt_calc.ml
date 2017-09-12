@@ -1,5 +1,8 @@
 open Local
-open Pratt
+
+module Stream = Pratt.Stream
+module P = Pratt.Make(Char)
+open P
 
 (* Integer parser for char tokens. *)
 let int g =
@@ -34,8 +37,8 @@ module T = Nanotest
 
 (* Helper testing function that parses the input and checks the result. *)
 let (==>) str expected =
-  let actual = Result.map first (run (parse calc) (lexer str)) in
-  let testable = T.(result int (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
+  let actual = Result.map _1 (run (parse calc) (lexer str)) in
+  let testable = T.(result int (testable (Fmt.of_to_string error_to_string))) in
   T.test testable str ~actual ~expected
 
 
@@ -45,7 +48,7 @@ let stream =
 
 let (==>!) str expected =
   let actual = run (parse calc) (lexer str) in
-  let testable = T.(result (pair int stream) (testable (Fmt.of_to_string (error_to_string Fmt.char)))) in
+  let testable = T.(result (pair int stream) (testable (Fmt.of_to_string error_to_string))) in
   T.test testable str ~actual ~expected
 
 

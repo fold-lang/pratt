@@ -1,19 +1,21 @@
 open Astring
-module P = Pratt
+
+module Stream = Pratt.Stream
+module P = Pratt.Make(Char)
 module T = Nanotest
 
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =
-  let printer = T.result T.char (T.testable (P.pp_error Fmt.char)) in
-  let actual  = Result.map first <| P.run parser (P.Stream.of_string input) in
+  let printer = T.(result char (testable P.pp_error)) in
+  let actual  = Result.map _1 @@ P.run parser (Stream.of_string input) in
   let message = "input: \"" ^ input ^ "\"" in
   T.test ~verbose:true printer message ~expected ~actual
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test' parser input expected =
-  let printer = T.result T.(list char) (T.testable (P.pp_error Fmt.char)) in
-  let actual  = Result.map first <| P.run parser (P.Stream.of_string input) in
+  let printer = T.result T.(list char) (T.testable P.pp_error) in
+  let actual  = Result.map _1 @@ P.run parser (Pratt.Stream.of_string input) in
   let message = "input: \"" ^ input ^ "\"" in
   T.test ~verbose:true printer message ~expected ~actual
 

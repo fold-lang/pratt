@@ -1,10 +1,12 @@
 B ../_build/default/src
 B ../_build/default/tests
-FLG -w -40 -open Pure
+FLG -w -40 -open Proto
 PKG astring
 PKG bytes
 PKG fmt
-PKG pure
+PKG proto
+PKG proto.kernel
+PKG proto.shadow-stdlib
 PKG result
 PKG uchar
 PKG unix
