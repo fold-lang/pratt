@@ -29,7 +29,7 @@ let identifier =
   [%sedlex.regexp? Plus (alphabetic | Chars "_'")]
 
 let delimeter =
-  [%sedlex.regexp? Chars "{}[],;:="]
+  [%sedlex.regexp? Chars "{}[].,;:=?"]
 
 let comment =
   [%sedlex.regexp? "//", Star (Compl '\n')]
@@ -37,34 +37,40 @@ let comment =
 let white_space =
   [%sedlex.regexp? Plus (' ' | '\t')]
 
-type token =
-  | Bool of bool
-  | Char of char
-  | Float of float
-  | Int of int
-  | String of string
-  | Operator of string
-  | Delimeter of string
-  | Identifier of string
-  | Keyword of string
-  [@@deriving show, ord, eq]
+type token = [
+  | `Bool of bool
+  | `Char of char
+  | `Float of float
+  | `Int of int
+  | `String of string
+  | `Operator of string
+  | `Delimiter of string
+  | `Identifier of string
+  | `Keyword of string
+] [@@deriving show, ord, eq]
+
+let is_keyword    = function `Keyword    _ -> true | _ -> false
+let is_delimiter  = function `Delimiter  _ -> true | _ -> false
+let is_identifier = function `Identifier _ -> true | _ -> false
 
 let rec pp_token ppf token =
   let open Fmt in
   match token with
-  | Bool v       -> pf ppf "%b" v
-  | Char v       -> pf ppf "%c" v
-  | Float v      -> pf ppf "%f" v
-  | Int v        -> pf ppf "%d" v
-  | String v     -> pf ppf "\"%s\"" v
-  | Operator v   -> pf ppf "[operator %s]" v
-  | Delimeter v  -> pf ppf "[delimeter %s]" v
-  | Identifier v -> pf ppf "[identifier %s]" v
-  | Keyword v    -> pf ppf "[keyword %s]" v
+  | `Bool v       -> pf ppf "%b" v
+  | `Char v       -> pf ppf "%c" v
+  | `Float v      -> pf ppf "%f" v
+  | `Int v        -> pf ppf "%d" v
+  | `String v     -> pf ppf "\"%s\"" v
+  | `Operator v   -> pf ppf "[operator %s]" v
+  | `Delimiter v  -> pf ppf "[delimeter %s]" v
+  | `Identifier v -> pf ppf "[identifier %s]" v
+  | `Keyword v    -> pf ppf "[keyword %s]" v
 
 module Token = struct
   type t = token
   let pp = pp_token
+  let compare (self : token) (other : token) =
+    Pervasives.compare self other
 end
 
 module Location = struct
@@ -123,40 +129,39 @@ let rec read self =
   match%sedlex lexbuf with
 
   (* Operators *)
-  | "!="   -> Operator (current_lexeme self)
-  | "!=="  -> Operator (current_lexeme self)
-  | "%"    -> Operator (current_lexeme self)
-  | "%="   -> Operator (current_lexeme self)
-  | "&"    -> Operator (current_lexeme self)
-  | "&&"   -> Operator (current_lexeme self)
-  | "&="   -> Operator (current_lexeme self)
-  | "*"    -> Operator (current_lexeme self)
-  | "*="   -> Operator (current_lexeme self)
-  | "+"    -> Operator (current_lexeme self)
-  | "++"   -> Operator (current_lexeme self)
-  | "+="   -> Operator (current_lexeme self)
-  | "-"    -> Operator (current_lexeme self)
-  | "--"   -> Operator (current_lexeme self)
-  | "-="   -> Operator (current_lexeme self)
-  | "/"    -> Operator (current_lexeme self)
-  | "/="   -> Operator (current_lexeme self)
-  | "<"    -> Operator (current_lexeme self)
-  | "<<"   -> Operator (current_lexeme self)
-  | "<<="  -> Operator (current_lexeme self)
-  | "<="   -> Operator (current_lexeme self)
-  | "=="   -> Operator (current_lexeme self)
-  | "==="  -> Operator (current_lexeme self)
-  | ">"    -> Operator (current_lexeme self)
-  | ">="   -> Operator (current_lexeme self)
-  | ">>"   -> Operator (current_lexeme self)
-  | ">>="  -> Operator (current_lexeme self)
-  | ">>>"  -> Operator (current_lexeme self)
-  | ">>>=" -> Operator (current_lexeme self)
-  | "?"    -> Operator (current_lexeme self)
-  | "^="   -> Operator (current_lexeme self)
-  | "|"    -> Operator (current_lexeme self)
-  | "|="   -> Operator (current_lexeme self)
-  | "||"   -> Operator (current_lexeme self)
+  | "!="   -> `Operator (current_lexeme self)
+  | "!=="  -> `Operator (current_lexeme self)
+  | "%"    -> `Operator (current_lexeme self)
+  | "%="   -> `Operator (current_lexeme self)
+  | "&"    -> `Operator (current_lexeme self)
+  | "&&"   -> `Operator (current_lexeme self)
+  | "&="   -> `Operator (current_lexeme self)
+  | "*"    -> `Operator (current_lexeme self)
+  | "*="   -> `Operator (current_lexeme self)
+  | "+"    -> `Operator (current_lexeme self)
+  | "++"   -> `Operator (current_lexeme self)
+  | "+="   -> `Operator (current_lexeme self)
+  | "-"    -> `Operator (current_lexeme self)
+  | "--"   -> `Operator (current_lexeme self)
+  | "-="   -> `Operator (current_lexeme self)
+  | "/"    -> `Operator (current_lexeme self)
+  | "/="   -> `Operator (current_lexeme self)
+  | "<"    -> `Operator (current_lexeme self)
+  | "<<"   -> `Operator (current_lexeme self)
+  | "<<="  -> `Operator (current_lexeme self)
+  | "<="   -> `Operator (current_lexeme self)
+  | "=="   -> `Operator (current_lexeme self)
+  | "==="  -> `Operator (current_lexeme self)
+  | ">"    -> `Operator (current_lexeme self)
+  | ">="   -> `Operator (current_lexeme self)
+  | ">>"   -> `Operator (current_lexeme self)
+  | ">>="  -> `Operator (current_lexeme self)
+  | ">>>"  -> `Operator (current_lexeme self)
+  | ">>>=" -> `Operator (current_lexeme self)
+  | "^="   -> `Operator (current_lexeme self)
+  | "|"    -> `Operator (current_lexeme self)
+  | "|="   -> `Operator (current_lexeme self)
+  | "||"   -> `Operator (current_lexeme self)
 
   (* Whitespace and comment *)
   | Plus (white_space | comment) ->
@@ -164,16 +169,16 @@ let rec read self =
 
   (* Int literal *)
   | int ->
-    Int (int_of_string (current_lexeme self))
+    `Int (int_of_string (current_lexeme self))
 
   (* Float literal *)
   | float ->
-    Float (float_of_string (current_lexeme self))
+    `Float (float_of_string (current_lexeme self))
 
   (* Group start *)
   | '('  ->
     self.group_count <- (self.group_count + 1);
-    Delimeter (current_lexeme self)
+    `Delimiter (current_lexeme self)
 
   (* Group end *)
   | ')' ->
@@ -182,36 +187,37 @@ let rec read self =
     if self.group_count < 0 then
       error self "unbalanced parenthesis"
     else
-      Delimeter (current_lexeme self)
+      `Delimiter (current_lexeme self)
 
   (* Delimiters *)
+  | "=>" -> `Delimiter (current_lexeme self)
   | delimeter ->
-    Delimeter (current_lexeme self)
+    `Delimiter (current_lexeme self)
 
   (* Strings *)
   | '"',  Star (Compl '"'), '"' ->
     let lexeme = current_lexeme self in
     let s = String.(Sub.to_string (sub lexeme ~start:1 ~stop:(length lexeme - 1))) in
-    String s
+    `String s
 
   (* Chars *)
   | '\'', Compl '\'', '\'' ->
-    Char (String.get (current_lexeme self) 1)
+    `Char (String.get (current_lexeme self) 1)
 
   (* Booleans *)
-  | "true"  -> Bool true
-  | "false" -> Bool false
+  | "true"  -> `Bool true
+  | "false" -> `Bool false
 
   (* Keywords *)
-  | "function" -> Keyword (current_lexeme self)
-  | "var"      -> Keyword (current_lexeme self)
-  | "return"   -> Keyword (current_lexeme self)
-  | "for"      -> Keyword (current_lexeme self)
-  | "while"    -> Keyword (current_lexeme self)
+  | "function" -> `Keyword (current_lexeme self)
+  | "var"      -> `Keyword (current_lexeme self)
+  | "return"   -> `Keyword (current_lexeme self)
+  | "for"      -> `Keyword (current_lexeme self)
+  | "while"    -> `Keyword (current_lexeme self)
 
   (* Identifiers *)
   | identifier ->
-    Identifier (current_lexeme self)
+    `Identifier (current_lexeme self)
 
   (* Newline symbol *)
   | '\n' ->
@@ -248,3 +254,4 @@ let rec to_stream lexer =
     Pratt.Stream.Yield (token, fun () -> to_stream lexer)
   with End_of_file ->
     Pratt.Stream.Empty
+
