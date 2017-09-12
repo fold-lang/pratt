@@ -15,7 +15,16 @@ module Stream : module type of Stream
     the matching token, the precedence (for infix rules) and the parser that
     builds the final Abstract Syntax Tree (AST) object. *)
 
-module Make (Token : Printable.Base) : sig
+
+module type Token = sig
+  type t
+
+  include Printable.Base  with type t := t
+  include Comparable.Base with type t := t
+end
+
+
+module Make (Token : Token) : sig
   type token = Token.t
   (** The type of tokens to be parsed. *)
 
@@ -174,7 +183,7 @@ module Make (Token : Printable.Base) : sig
     val new_scope : 'a t -> 'a t
     val pop_scope : 'a t -> 'a t
 
-    val add : 'a t -> 'a rule -> 'a t
+    val add : 'a rule -> 'a t -> 'a t
   end
 
   val nud : int -> 'a grammar -> 'a parser

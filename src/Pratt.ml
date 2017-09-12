@@ -4,16 +4,22 @@
 
 module Stream = Stream
 
-module Hash_map = struct
-  include Hashtbl
+module type Token = sig
+  type t
 
-  let get tbl x =
-    try Some (Hashtbl.find tbl x)
-    with Not_found -> None
+  include Printable.Base  with type t := t
+  include Comparable.Base with type t := t
 end
 
+module Make (Token : Token) = struct
+  module Table = struct
+    include Map.Make(Token)
 
-module Make (Token : Printable.Base) = struct
+    let get tbl x =
+      try Some (find tbl x)
+      with Not_found -> None
+  end
+
   type token = Token.t
 
   let pp_token = Token.pp
@@ -184,12 +190,14 @@ module Make (Token : Printable.Base) = struct
   let some_while test p =
     some (current >>= (guard << test) >>= fun () -> p)
 
-  type 'a grammar = 'a scope list
+  type 'a grammar = {
+    data : 'a scope list;
+    term : 'a null
+  }
 
   and 'a scope = {
-    term : 'a null;
-    null : (token, 'a null) Hash_map.t;
-    left : (token, 'a left) Hash_map.t;
+    null : 'a null Table.t;
+    left : 'a left Table.t;
   }
 
   and 'a null = ('a grammar ->       'a parser)
@@ -204,58 +212,65 @@ module Make (Token : Printable.Base) = struct
     type 'a t = 'a grammar
 
     let make_scope () = {
-      term = (fun g -> current >>= fun t -> error (Invalid_prefix t));
-      null = Hash_map.create 64;
-      left = Hash_map.create 64
+      null = Table.empty;
+      left = Table.empty
     }
 
-    let empty = []
+    let empty = {
+      term = (fun g -> current >>= fun t -> error (Invalid_prefix t));
+      data = []
+    }
 
-    let add_to_scope scope rule =
+    let add rule grammar =
+      let scope, data =
+      match grammar.data with
+      | [] -> make_scope (), []
+      | scope :: grammar' -> scope, grammar' in
       match rule with
-      | Term term -> { scope with term }
+      | Term term -> { grammar with term }
       | Null (t, rule) ->
-        Hash_map.add scope.null t rule;
-        scope
+        let scope = { scope with null = Table.add t rule scope.null } in
+        { grammar with data = scope :: data }
       | Left (t, rule) ->
-        Hash_map.add scope.left t rule;
-        scope
+        let scope = { scope with left = Table.add t rule scope.left } in
+        { grammar with data = scope :: data }
 
-    let add grammar rule =
-      match grammar with
-      | [] -> [add_to_scope (make_scope ()) rule]
-      | scope :: grammar' -> add_to_scope scope rule :: grammar'
-
-    let rec dump pp_token grammar =
+    let dump pp_token grammar =
       let dump_scope scope =
         Fmt.pr "grammar.null:\n";
-        Hash_map.iter (fun t _ -> Fmt.pr "- %a\n" pp_token t) scope.null;
+        Table.iter (fun t _ -> Fmt.pr "- %a\n" pp_token t) scope.null;
         Fmt.pr "grammar.left:\n";
-        Hash_map.iter (fun t _ -> Fmt.pr "- %a\n" pp_token t) scope.left in
-      match grammar with
-      | [] -> ()
-      | scope :: grammar' ->
-        dump_scope scope;
-        Fmt.pr "***@.";
-        dump pp_token grammar'
+        Table.iter (fun t _ -> Fmt.pr "- %a\n" pp_token t) scope.left in
+      let rec loop (data : 'a scope list) =
+        match data with
+        | [] -> ()
+        | scope :: data' ->
+          dump_scope scope;
+          Fmt.pr "***@.";
+          loop data' in
+      loop grammar.data
 
-    let rec get_left token grammar =
-      match grammar with
-      | [] -> None
-      | scope :: grammar' ->
-        begin match Hash_map.get scope.left token with
-          | Some rule -> Some rule
-          | None -> get_left token grammar'
-        end
+    let get_left token grammar =
+      let rec find data =
+        match data with
+        | [] -> None
+        | scope :: data' ->
+          begin match Table.get token scope.left with
+            | Some rule -> Some rule
+            | None -> find data'
+          end in
+      find grammar.data
 
-    let rec get_null token grammar =
-      match grammar with
-      | [] -> None
-      | scope :: grammar' ->
-        begin match Hash_map.get scope.null token with
-          | Some rule -> Some rule
-          | None -> get_null token grammar'
-        end
+    let get_null token grammar =
+      let rec find data =
+        match data with
+        | [] -> None
+        | scope :: data' ->
+          begin match Table.get token scope.null with
+            | Some rule -> Some rule
+            | None -> find data'
+          end in
+      find grammar.data
 
     let has_null token grammar =
       is_some (get_null token grammar)
@@ -264,17 +279,17 @@ module Make (Token : Printable.Base) = struct
       is_some (get_left token grammar)
 
     let new_scope grammar =
-      make_scope () :: grammar
+      { grammar with data = make_scope () :: grammar.data }
 
     let pop_scope grammar =
-      match grammar with
-      | [] -> []
-      | _ :: grammar' -> grammar'
+      let data =
+        match grammar.data with
+        | [] -> []
+        | _ :: data' -> data' in
+      { grammar with data }
 
     let get_term grammar =
-      match grammar with
-      | [] -> (fun g -> current >>= fun t -> error (Invalid_prefix t))
-      | scope :: grammar' -> scope.term
+      grammar.term
   end
 
   let nud rbp grammar =
@@ -326,7 +341,7 @@ module Make (Token : Printable.Base) = struct
 
 
   let grammar rules =
-    List.fold_left Grammar.add Grammar.empty rules
+    List.fold_left (flip Grammar.add) Grammar.empty rules
 
   let run p stream =
     match p stream with
