@@ -1,19 +1,31 @@
 
+let constantly x _ = x
+let (<<) f g = fun x -> f (g x)
+let is_some = function Some _ -> true | None -> false
+let flip f x y = f y x
 
 (* TODO: When failing show the so-far parsed result. *)
+
+type 'a fmt = Format.formatter -> 'a -> unit
+type 'a cmp = 'a -> 'a -> int
+
 
 module Stream = Stream
 
 module type Token = sig
   type t
 
-  include Printable.Base  with type t := t
-  include Comparable.Base with type t := t
+  val fmt : t fmt
+  val cmp : t cmp
 end
+
 
 module Make (Token : Token) = struct
   module Table = struct
-    include Map.Make(Token)
+    include Map.Make(struct
+        type t = Token.t
+        let compare = Token.cmp
+      end)
 
     let get tbl x =
       try Some (find tbl x)
@@ -22,7 +34,7 @@ module Make (Token : Token) = struct
 
   type token = Token.t
 
-  let pp_token = Token.pp
+  let pp_token = Token.fmt
 
   type error =
     | Unexpected     of { expected : token option; actual : token option }
@@ -155,7 +167,7 @@ module Make (Token : Token) = struct
     | actual when test actual -> return actual
     | actual -> error (unexpected_token actual)
 
-  let any s = (satisfy (always true)) s
+  let any s = (satisfy (constantly true)) s
 
   let from list =
     satisfy (fun x -> List.mem x list)
@@ -163,8 +175,8 @@ module Make (Token : Token) = struct
   let none list =
     satisfy (fun x -> not (List.mem x list))
 
-  let range ?(compare = Kernel.compare) s e =
-    let (<=) a b = not (compare a b = Comparable.greater) in
+  let range ?(compare = Pervasives.compare) s e =
+    let (<=) a b = not (compare a b > 0) in
     satisfy (fun x -> s <= x && x <= e)
 
   let rec choice ps =
@@ -218,7 +230,7 @@ module Make (Token : Token) = struct
 
     let empty = {
       term = (fun g -> current >>= fun t -> error (Invalid_prefix t));
-      data = []
+      data = [];
     }
 
     let add rule grammar =
@@ -297,7 +309,9 @@ module Make (Token : Token) = struct
     match Grammar.get_null token grammar with
     | Some parse -> parse grammar
     | None ->
-      (* Infix tokens can only be a valid prefix if they are directly defined. *)
+      (* Infix tokens can only be a valid prefix if they are directly defined
+         as such. If the token has a led definition it is not consumed,
+         otherwise the term parser is called. *)
       if Grammar.has_left token grammar then
         error (invalid_prefix token)
       else
@@ -314,10 +328,11 @@ module Make (Token : Token) = struct
           else
             return x
         | None ->
+          (* Lies!! \o/ *)
           (* Treat as delimiter, _i.e._, break. This is useful for multiple
              top-level statements. In the future allow a custom handler. *)
-          (* Previous: error (Invalid_infix token) *)
-          return x
+          (* Previous: return x *)
+          error (Invalid_infix token)
       end
     | None ->
       return x

@@ -5,9 +5,12 @@
  * Distributed under the ISC license, see LICENSE file.
  *)
 
+type 'a fmt = Format.formatter -> 'a -> unit
+type 'a cmp = 'a -> 'a -> int
+
 module Stream : module type of Stream
 
-(** Pratt is a library for simple top-down precedence parsing.
+(** Pratt is a simple top-down precedence parser.
 
     The grammar is defined as a set of rules that are matched on tokens. Input
     is processed linearly with an iterator. The parser searches for rules that
@@ -19,8 +22,8 @@ module Stream : module type of Stream
 module type Token = sig
   type t
 
-  include Printable.Base  with type t := t
-  include Comparable.Base with type t := t
+  val fmt : t fmt
+  val cmp : t cmp
 end
 
 
@@ -51,7 +54,7 @@ module Make (Token : Token) : sig
   val error_to_string : error -> string
   (** [error_to_string token_pp e] is a human-readable representation of [e]. *)
 
-  val pp_error : error printer
+  val pp_error : error fmt
   (** [pp_error token_pp] is a pretty printer for values of type [e] and
       contained tokens. *)
 
@@ -111,7 +114,7 @@ module Make (Token : Token) : sig
   (** [current] is the parser that produces the current token as the result. *)
 
   val next : token parser
-  (** [next] advances to the next token producing it as the parser result. *)
+  (** [next] returns the current token advances and advances to the next one. *)
 
   val expect : token -> token parser
   (** [expect token] checks if the current token in the input is equal to [token]
@@ -129,7 +132,7 @@ module Make (Token : Token) : sig
       satisfies [test] predicate or fails otherwise. *)
 
   val exactly : token -> token parser
-  (** [exactly token] parses *exactly* [token]. *)
+  (** [exactly token] parses *exactly* the given [token]. *)
 
   val any : token parser
   (** [any] is a parser that accepts any input token. *)
@@ -140,7 +143,7 @@ module Make (Token : Token) : sig
   val none : token list -> token parser
   (** [none tokens] parses any token *not* present in [tokens] list. *)
 
-  val range : ?compare: (token -> token -> order) -> token -> token -> token parser
+  val range : ?compare: token cmp -> token -> token -> token parser
   (** [range ?compare s e] parses any token in the range defined by [s] and [e].
       Optionally a custom [compare] function can be supplied. *)
 
@@ -178,7 +181,7 @@ module Make (Token : Token) : sig
     val has_null : token -> 'a grammar -> bool
     val has_left : token -> 'a grammar -> bool
 
-    val dump : token printer -> 'a t -> unit
+    val dump : token fmt -> 'a t -> unit
 
     val new_scope : 'a t -> 'a t
     val pop_scope : 'a t -> 'a t
@@ -230,7 +233,7 @@ module Make (Token : Token) : sig
   (** {1:parsing Parsing} *)
 
   val grammar : 'a rule list -> 'a grammar
-  (** [grammar rules] is a grammar constructed with [rules]. *)
+  (** [grammar rules] is a grammar for a language constructed with [rules]. *)
 
   val parse : ?precedence: int -> 'a grammar -> 'a parser
   (** [parse ?precedence g] is the parser for the grammar [g] starting with

@@ -3,8 +3,8 @@ open Proto
 open Astring
 
 module Stream = Pratt.Stream
-module P = Pratt.Make(Lexer.Token)
-module L = Lexer
+module L = Javascript_lexer
+module P = Pratt.Make(L.Token)
 
 let (>>=) = P.(>>=)
 let return = P.return
@@ -19,7 +19,6 @@ let pair ~sep p1 p2 =
   sep >>= fun () ->
   p2 >>= fun y ->
   return (x, y)
-
 
 module AST = struct
   type t = [
@@ -37,14 +36,17 @@ module AST = struct
     | `Symbol of string
     | `Ternary of t * t * t
     | `Unary of string * t
+    | `While of t * t list
     | `Var of string * t
   ]
 
   let rec pp formatter self =
     let open Fmt in
-    let pp_args = vbox (list ~sep:(always ", ") string) in
+    let _br ?(indent = 0) n = fun formatter () ->
+      Format.pp_print_break formatter n indent in
+    let pp_args = hvbox (list ~sep:(always ", ") string) in
     let pp_body = vbox (list pp) in
-    let pp_item = pair ~sep:(always ":@ ") String.dump pp in
+    let pp_item = hbox (pair ~sep:(always ":@ ") String.dump pp) in
     match self with
     | `Symbol x | `Identifier x -> String.pp formatter x
     | `String x -> String.dump formatter x
@@ -56,41 +58,44 @@ module AST = struct
         pp_args args pp_body body
 
     | `Return x ->
-      Fmt.pf formatter "return @[%a@]" pp x
+      pf formatter "return @[%a@]" pp x
 
     | `Lambda (args, body) ->
-      pf formatter "@[<v4>function(@[%a@]) {@,%a@]@,}"
+      pf formatter "@[<v>@[<v4>function(%a) {@;%a@]@;}@]"
         pp_args args pp_body body
 
     | `Function (name, args, body) ->
+      (* pr "while(%a)" (hvbox (list ~sep:(always ",@;") int)) *)
       pf formatter "@[<v4>function %s(@[%a@]) {@,%a@]@,}"
         name pp_args args pp_body body
 
     | `Object o ->
-      let open Fmt in
-      pf formatter "@[<4>{%a@]}" (list ~sep:(always ",@ ") pp_item) o
+      pf formatter "@[<v4>{@,%a@]@,}" (list ~sep:(always ",@,") pp_item) o
 
     | `Call (f, xs) ->
-      Fmt.pf formatter "%a(@[%a@])" pp f Fmt.(list ~sep:(always ",@ ") pp) xs
+      pf formatter "%a(@[%a@])" pp f Fmt.(list ~sep:(always ",@ ") pp) xs
 
     | `Ternary (t, a, b) ->
-      Fmt.pf formatter "@[<4>%a@ @,?@ %a@, :@ %a@]" pp t pp a pp b
+      pf formatter "@[<4>%a@ @,?@ %a@, :@ %a@]" pp t pp a pp b
 
     | `Binary (op, a, b) ->
-      Fmt.pf formatter "@[<4>%a@,@ %s@ %a@]" pp a op pp b
+      pf formatter "@[<2>%a@;%s@;%a@]" pp a op pp b
 
     | `Unary (op, a) ->
-      Fmt.pf formatter "%s%a" op pp a
+      pf formatter "%s%a" op pp a
 
     | `Var (name, `Lambda (args, body)) ->
       pf formatter "@[<v4>var %s = function(@[%a@]) {@,%a@]@,}"
         name pp_args args pp_body body
 
     | `Var (name, value) ->
-      Fmt.pf formatter "@[<4>var %s =@ %a@]" name pp value
+      pf formatter "@[<4>var %s =@ %a@]" name pp value
 
     | `Dot (x, y) ->
-      Fmt.pf formatter "%a.%a" pp x pp y
+      pf formatter "%a.%a" pp x pp y
+
+    | `While (condition, body) ->
+      pr "@[<v4>while (%a) {@,%a@]@,}" (hvbox pp) condition (list pp) body
 end
 
 let literal g : AST.t P.parser =
@@ -164,6 +169,16 @@ module Parser = struct
     P.parse grammar >>= fun alternative ->
     return (`Ternary (condition, consequence, alternative))
 
+  let while' grammar =
+    keyword "while" >>= fun () ->
+    delimiter "(" >>= fun () ->
+    P.parse grammar >>= fun condition ->
+    delimiter ")" >>= fun () ->
+    delimiter "{" >>= fun () ->
+    P.many (P.parse grammar) >>= fun body ->
+    delimiter "}" >>= fun () ->
+    return (`While (condition, body))
+
   let parse = P.parse @@ P.grammar [
     P.term literal;
     (* XXX: WTF? *)
@@ -171,6 +186,7 @@ module Parser = struct
     (* P.null (`Keyword "var") (fun g -> P.consume (`Keyword "varx") >>= fun () -> return (`Int 42)); *)
     P.null (`Keyword "var") var;
     P.null (`Keyword "function") function';
+    P.null (`Keyword "while") while';
     P.null (`Delimiter "{") object';
     P.null (`Operator "+") (P.unary (fun a -> (`Unary ("+", a))));
     P.left 30 (`Operator "+") (P.binary (fun a b -> (`Binary ("+", a, b))));
@@ -208,12 +224,19 @@ var partialSum = function(x) { return function (y) { return x + y } }
 
 var x = cond(a, f(1, 2, true), g()) ? "yes" : "no"
 
-var point = {
+{
   "x": 42,
-  "y": 11
+  "y": 11,
+  "f": function(x) { return x }
 }
 
 assert(point.x === 42)
+
+while(x === 1 + x === 1 + x === 1) {
+  console.log("yes")
+  console.log("yes")
+}
+
 |}
 
 let main =
@@ -225,5 +248,5 @@ let main =
         loop input'
       | Error Zero -> ()
       | Error e -> Fmt.pr "main: %s@." (P.error_to_string e) in
-  loop (Lexer.(to_stream (of_string input)))
+  loop (L.(to_stream (of_string input)))
 
