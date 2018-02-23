@@ -1,13 +1,17 @@
 B ../_build/default/src
 B ../_build/default/tests
-FLG -w -40 -open Proto
+FLG -ppx '/Users/rizo/Developer/OCaml/Code/pratt/_build/default/.ppx/sedlex.ppx/ppx.exe --as-ppx'
+FLG -w -40
 PKG astring
 PKG bytes
 PKG fmt
+PKG gen
 PKG proto
 PKG proto.kernel
 PKG proto.shadow-stdlib
 PKG result
+PKG sedlex
 PKG uchar
 PKG unix
+S .
 S ../src

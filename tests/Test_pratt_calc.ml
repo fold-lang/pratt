@@ -1,5 +1,6 @@
 open Local
 
+let _1 = fst
 module Stream = Pratt.Stream
 module P = Pratt.Make(Char)
 open P
@@ -7,7 +8,7 @@ open P
 (* Integer parser for char tokens. *)
 let int g =
   some (range '0' '9') >>= fun (x, xs) ->
-  return (Int.force_of_string (String.implode (x :: xs)))
+  return (Int.unsafe_of_string (String.implode (x :: xs)))
 
 let rec fac = function
   | 0 | 1 -> 1
@@ -30,8 +31,8 @@ let calc =
 
 
 (* Basic string lexer (ignores blank characters). *)
-let lexer =
-  Stream.of_string >> Stream.reject Char.Ascii.is_blank
+let lexer str =
+  Stream.of_string str |> Stream.reject Char.Ascii.is_blank
 
 module T = Nanotest
 
@@ -44,7 +45,7 @@ let (==>) str expected =
 
 let stream =
   T.testable ~equal:(fun a b -> Stream.(to_list a == to_list b))
-    (Fmt.of_to_string (always "<stream>"))
+    (Fmt.of_to_string (fun _ -> "<stream>"))
 
 let (==>!) str expected =
   let actual = run (parse calc) (lexer str) in

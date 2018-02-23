@@ -7,25 +7,23 @@ let flip f x y = f y x
 (* TODO: When failing show the so-far parsed result. *)
 
 type 'a fmt = Format.formatter -> 'a -> unit
-type 'a cmp = 'a -> 'a -> int
+type 'a comparator = 'a -> 'a -> int
 
 
 module Stream = Stream
 
+
 module type Token = sig
   type t
 
-  val fmt : t fmt
-  val cmp : t cmp
+  val pp : t fmt
+  val compare : t comparator
 end
 
 
 module Make (Token : Token) = struct
   module Table = struct
-    include Map.Make(struct
-        type t = Token.t
-        let compare = Token.cmp
-      end)
+    include Map.Make(Token)
 
     let get tbl x =
       try Some (find tbl x)
@@ -34,7 +32,7 @@ module Make (Token : Token) = struct
 
   type token = Token.t
 
-  let pp_token = Token.fmt
+  let pp_token = Token.pp
 
   type error =
     | Unexpected     of { expected : token option; actual : token option }
@@ -315,7 +313,8 @@ module Make (Token : Token) = struct
       if Grammar.has_left token grammar then
         error (invalid_prefix token)
       else
-        (Grammar.get_term grammar) grammar
+        let parse = Grammar.get_term grammar in
+        parse grammar
 
   let rec led rbp grammar x =
     get >>= fun stream ->
@@ -328,10 +327,6 @@ module Make (Token : Token) = struct
           else
             return x
         | None ->
-          (* Lies!! \o/ *)
-          (* Treat as delimiter, _i.e._, break. This is useful for multiple
-             top-level statements. In the future allow a custom handler. *)
-          (* Previous: return x *)
           error (Invalid_infix token)
       end
     | None ->

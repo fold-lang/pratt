@@ -1,0 +1,29 @@
+
+digraph pratt {
+  node [shape=record];
+  nud [shape=hexagon, color=Blue];
+  led [shape=hexagon, color=Blue];
+  nud_invalid [color=Red,label="nud.invalid_nud(token)"];
+  led_return [color=Green,label="led.return(left)"];
+
+  // NUD
+  nud -> "nud.has_nud(token)" [style=dashed];
+  "nud.has_nud(token)"  -> "nud.parse_nud(token)" [label="yes"];
+  "nud.has_nud(token)"  -> "nud.has_led(token)" [label="no"];
+  "nud.has_led(token)"  -> "nud.parse_term(token)" [label="no"];
+  "nud.has_led(token)"  -> nud_invalid [label="yes"];
+  "nud.parse_nud(token)" -> led [style=dashed];
+  "nud.parse_term(token)" -> led [style=dashed];
+
+  // LED
+  led -> "led.is_eof" [style=dashed];
+  "led.is_eof" -> led_return [label="yes"];
+  "led.is_eof" -> "led.has_led(token)" [label="no"];
+  "led.has_led(token)" -> "led.(lbp > rbp)" [label="yes"];
+  "led.has_led(token)" -> "invalid_led(token)" [label="no", color=Red];
+  "led.(lbp > rbp)" -> "led(token)" [label="yes"];
+  "led.(lbp > rbp)" -> led_return [label="no"];
+  "led(token)" -> "advance()" [style=dashed];
+  "advance()" -> "nud(token)" [style=dashed];
+}
+

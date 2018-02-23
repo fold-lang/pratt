@@ -1,7 +1,8 @@
+let fmt = Format.asprintf
 
 module C = struct
-  let color_format color =
-    format "\027[%dm%s\027[0m"
+  let color_pp color =
+    fmt "\027[%dm%s\027[0m"
       (match color with
        | `Black   -> 30
        | `Red     -> 31
@@ -12,21 +13,21 @@ module C = struct
        | `Cyan    -> 36
        | `White   -> 37)
 
-  let blue               = color_format `Blue
-  let red                = color_format `Red
-  let yellow             = color_format `Yellow
-  let magenta            = color_format `Magenta
-  let cyan               = color_format `Cyan
-  let white              = color_format `White
-  let green              = color_format `Green
-  let bright_white x     = format "\027[1;37m%s\027[0m" x
-  let bright_blue x      = format "\027[1;34m%s\027[0m" x
-  let bright_magenta x   = format "\027[1;35m%s\027[0m" x
-  let violet x           = format "\027[0;34m%s\027[0m" x
-  let bright_red x       = format "\027[1;31m%s\027[0m" x
-  let bright_green x     = format "\027[1;32m%s\027[0m" x
-  let start_bright_white = format "\027[1;37m"
-  let start_white        = format "\027[37m"
+  let blue               = color_pp `Blue
+  let red                = color_pp `Red
+  let yellow             = color_pp `Yellow
+  let magenta            = color_pp `Magenta
+  let cyan               = color_pp `Cyan
+  let white              = color_pp `White
+  let green              = color_pp `Green
+  let bright_white x     = fmt "\027[1;37m%s\027[0m" x
+  let bright_blue x      = fmt "\027[1;34m%s\027[0m" x
+  let bright_magenta x   = fmt "\027[1;35m%s\027[0m" x
+  let violet x           = fmt "\027[0;34m%s\027[0m" x
+  let bright_red x       = fmt "\027[1;31m%s\027[0m" x
+  let bright_green x     = fmt "\027[1;32m%s\027[0m" x
+  let start_bright_white = fmt "\027[1;37m"
+  let start_white        = fmt "\027[37m"
   let end_color          = "\027[0m"
   let italic x           = "\027[3m" ^ x ^ "\027[0m"
   let underline x        = "\027[4m" ^ x ^ "\027[0m"
@@ -36,8 +37,8 @@ end
 
 module type Testable = sig
   type t
-  include Equatable.Base with type t := t
-  include Printable.Base with type t := t
+  val equal : t -> t -> bool
+  val pp : Format.formatter -> t -> unit
 end
 
 type 'a testable = (module Testable with type t = 'a)
@@ -60,11 +61,11 @@ let time ?fmt f x =
 let test ?(verbose = true) ty msg ~actual ~expected () =
   let ok = Testable.equal ty actual expected in
   begin if not ok then begin
-    print (Fmt.strf "  %s %s" (C.bright_red "✗") (C.bright_white msg));
-    print (Fmt.strf "    - %a" (Testable.pp ty) expected);
-    print (Fmt.strf "    + %a" (Testable.pp ty) actual)
+    Fmt.pr "  %s %s@." (C.bright_red "✗") (C.bright_white msg);
+    Fmt.pr "    - %a@." (Testable.pp ty) expected;
+    Fmt.pr "    + %a@." (Testable.pp ty) actual
   end else if verbose then
-    print (format "  %s %s" (C.bright_green "✓") (C.bright_white msg))
+    Fmt.pr "  %s %s@." (C.bright_green "✓") (C.bright_white msg)
   end;
   ok
 
@@ -76,7 +77,7 @@ let testable (type a) (pp: a Fmt.t) (equal: a -> a -> bool) : a testable =
   end in
   (module M)
 
-let testable (type a) ?(equal: a -> a -> bool = (==)) (pp: a Fmt.t) : a testable =
+let testable (type a) ?(equal: a -> a -> bool = Pervasives.(=)) (pp: a Fmt.t) : a testable =
   let module M = struct
     type t = a
     let pp = pp
@@ -86,7 +87,7 @@ let testable (type a) ?(equal: a -> a -> bool = (==)) (pp: a Fmt.t) : a testable
 
 
 let group name tests =
-  print (format "━━━ %s ━━━" (C.bright_blue name));
+  Fmt.pr "━━━ %s ━━━@." (C.bright_blue name);
   let t0 = Unix.gettimeofday () in
   let s, f, t =
     List.fold_left begin fun (s, f, t) test ->
@@ -97,17 +98,17 @@ let group name tests =
   let msg =
     match s, f with
     | 1, 0 -> "Test passed"
-    | s, 0 -> format "All %d tests passed" s
+    | s, 0 -> fmt "All %d tests passed" s
     | 0, 1 -> "Test failed"
-    | 0, f -> format "All %d tests failed" f
-    | s, f -> format "%d tests passed, %d tests failed" s f in
-  print (format "  %s %s in %0.2fms\n" (C.bright_magenta "•") msg (t *. 1000.0))
+    | 0, f -> fmt "All %d tests failed" f
+    | s, f -> fmt "%d tests passed, %d tests failed" s f in
+  Fmt.pr "  %s %s in %0.2fms@." (C.bright_magenta "•") msg (t *. 1000.0)
 
-let int    : 'a testable = (module Int)
-let float  : 'a testable = (module Float)
-let char   : 'a testable = (module Char)
-let bool   : 'a testable = (module Bool)
-let unit   : 'a testable = (module Unit)
+let int    : 'a testable = testable Fmt.int
+let float  : 'a testable = testable Fmt.float
+let char   : 'a testable = testable Fmt.char
+let bool   : 'a testable = testable Fmt.bool
+let unit   : 'a testable = testable (Fmt.unit "()")
 let int32  : 'a testable = testable ~equal:Int32.equal Fmt.int32
 let int64  : 'a testable = testable ~equal:Int64.equal Fmt.int64
 let string : 'a testable = testable ~equal:String.equal Fmt.string

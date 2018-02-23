@@ -6,7 +6,7 @@
  *)
 
 type 'a fmt = Format.formatter -> 'a -> unit
-type 'a cmp = 'a -> 'a -> int
+type 'a comparator = 'a -> 'a -> int
 
 module Stream : module type of Stream
 
@@ -22,8 +22,8 @@ module Stream : module type of Stream
 module type Token = sig
   type t
 
-  val fmt : t fmt
-  val cmp : t cmp
+  val pp : t fmt
+  val compare : t comparator
 end
 
 
@@ -143,7 +143,7 @@ module Make (Token : Token) : sig
   val none : token list -> token parser
   (** [none tokens] parses any token *not* present in [tokens] list. *)
 
-  val range : ?compare: token cmp -> token -> token -> token parser
+  val range : ?compare: token comparator -> token -> token -> token parser
   (** [range ?compare s e] parses any token in the range defined by [s] and [e].
       Optionally a custom [compare] function can be supplied. *)
 

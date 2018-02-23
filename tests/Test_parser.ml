@@ -3,7 +3,9 @@ open Astring
 module Stream = Pratt.Stream
 module P = Pratt.Make(Char)
 module T = Nanotest
+open Local
 
+let _1 = fst
 
 (* Helper test function, tests a particular [parser] with a given [input]. *)
 let test parser input expected =

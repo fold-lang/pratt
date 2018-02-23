@@ -1,9 +1,8 @@
 (jbuild_version 1)
-
 (executables
-  ((names (Test_parser Test_pratt_calc))
-   (libraries (pratt proto fmt unix astring))
-   (flags (:standard -open Proto))))
+  ((names (Test_pratt_calc Test_parser Test_lispy))
+   (libraries (pratt astring fmt unix sedlex))
+   (preprocess (pps (sedlex.ppx)))))
 
 (alias
  ((name runtest)
@@ -11,9 +10,16 @@
   (deps (Test_parser.exe))
   (action (run ${<}))))
 
+
 (alias
  ((name runtest)
   (package pratt)
   (deps (Test_pratt_calc.exe))
+  (action (run ${<}))))
+
+(alias
+ ((name runtest)
+  (package pratt)
+  (deps (Test_lispy.exe))
   (action (run ${<}))))
 
