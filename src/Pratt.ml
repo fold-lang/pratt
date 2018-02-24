@@ -1,4 +1,10 @@
 
+let inspect pp =
+  Format.fprintf Fmt.stderr "@[%a@.@]" pp
+
+let log fmt =
+  Format.kfprintf (fun f -> Format.pp_print_newline f ()) Fmt.stderr fmt
+
 let constantly x _ = x
 let (<<) f g = fun x -> f (g x)
 let is_some = function Some _ -> true | None -> false
@@ -327,7 +333,7 @@ module Make (Token : Token) = struct
           else
             return x
         | None ->
-          error (Invalid_infix token)
+          return x
       end
     | None ->
       return x
@@ -339,14 +345,14 @@ module Make (Token : Token) = struct
     many begin
       current >>= fun token ->
       guard (not (Grammar.has_left token grammar)) >>= fun () ->
-      parse grammar
+      nud 0 grammar
     end
 
   let parse_some grammar =
     some begin
       current >>= fun token ->
       guard (not (Grammar.has_left token grammar)) >>= fun () ->
-      parse grammar
+      nud 0 grammar
     end
 
 

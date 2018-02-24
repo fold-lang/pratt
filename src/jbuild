@@ -4,6 +4,5 @@
  ((name pratt)
   (public_name pratt)
   (modules (Pratt Stream))
-  (libraries (proto fmt astring))
-  (flags (:standard -open Proto -open Astring))))
+  (libraries (fmt astring yojson))))
 
