@@ -68,7 +68,7 @@ let rec read self =
 
   (* Everything else is illegal *)
   | any ->
-    failwith "illegal character"
+    failwith ("illegal character: " ^ current_lexeme self)
 
   (* Sedlex: the last branch must be a catch-all error case *)
   | _ -> failwith "impossible"
