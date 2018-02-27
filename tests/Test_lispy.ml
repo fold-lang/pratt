@@ -15,11 +15,12 @@ module G = P.Grammar
 let (>>=) = P.(>>=)
 
 module E = struct
-  type t = [ `sym of string | `add of t * t | `neg of t | `seq of t list ]
+  type t = [ `sym of string | `add of t * t | `sub of t * t | `neg of t | `seq of t list ]
   let rec pp formatter e =
     match e with
     | `sym a -> Format.fprintf formatter "%s" a
     | `add (a, b) -> Format.fprintf formatter "(%a + %a)" pp a pp b
+    | `sub (a, b) -> Format.fprintf formatter "(%a - %a)" pp a pp b
     | `neg a -> Format.fprintf formatter "(- %a)" pp a
     | `seq xs -> Format.fprintf formatter "(%a)" (Fmt.list ~sep:(Fmt.unit " ") pp) xs
   let equal = (=)
@@ -29,7 +30,6 @@ let parse g =
   let left =
     P.some begin
       P.current >>= fun token ->
-      P.guard (not (G.has_left token g)) >>= fun () ->
       P.nud 0 g
     end >>= fun (x, xs) ->
     if List.length xs = 0 then
@@ -47,6 +47,11 @@ let parse_add g a =
   parse g >>= fun b ->
   P.return (`add (a, b))
 
+let parse_sub g a =
+  P.advance >>= fun () ->
+  parse g >>= fun b ->
+  P.return (`sub (a, b))
+
 let parse_neg g =
   P.advance >>= fun () ->
   parse g >>= fun a ->
@@ -63,6 +68,7 @@ let lispy =
   P.grammar P.[
     term               parse_term;
     left    30 "+"     parse_add;
+    left    30 "-"     parse_sub;
     null       "-"     parse_neg;
     null       "("     parse_group;
     delimiter  ")"
@@ -105,7 +111,6 @@ let () =
     seq [`sym "let"; seq bindings; body] in
   let lambda args body =
     seq [`sym "lambda"; seq args; body] in
-
 
   let ex1_str = {|
       (def a (a b c)
