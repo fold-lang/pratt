@@ -28,10 +28,7 @@ end
 
 let parse g =
   let left =
-    P.some begin
-      P.current >>= fun token ->
-      P.nud 0 g
-    end >>= fun (x, xs) ->
+    P.some (P.nud 0 g) >>= fun (x, xs) ->
     if List.length xs = 0 then
       P.return x
     else
